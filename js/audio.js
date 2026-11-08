@@ -159,8 +159,12 @@ const Sound = (() => {
     }
   }
 
+  // The context is created only by unlock(), on the first user gesture, so loading the page logs no autoplay warnings.
+  // Until then the wanted track is remembered and starts with the unlock.
+  let wanted = 'off';
   function setTrack(name) {
-    if (!ensure()) return;
+    wanted = name;
+    if (!ctx) return;
     if (track === name) return;
     track = name;
     clearInterval(musicTimer);
@@ -260,6 +264,7 @@ const Sound = (() => {
   function unlock() {
     if (!ensure()) return;
     if (ctx.state === 'suspended') ctx.resume();
+    if (track !== wanted) setTrack(wanted);
   }
 
   function setVolumes(v) {
