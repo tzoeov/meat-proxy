@@ -326,6 +326,27 @@ const Art = (() => {
     drawFace(p, L, F, o.t);
     drawHairFront(p, L, F, hc);
     drawHat(p, L, F);
+    if (o.gear) drawGear(p, L, F, o.t);
+  }
+  // About one generated officer in seven wears an earpiece or thin AR glasses, picked from their look so it never changes.
+  function gearOf(L) {
+    const n = (L.skin * 7 + L.age * 13 + String(L.hair).length * 5 + String(L.eyes).length * 3 + String(L.faceShape).length) % 10;
+    if (n === 0) return 'ear';
+    return n === 1 && L.glasses === 'none' ? 'ar' : '';
+  }
+  function drawGear(p, L, F, t) {
+    const kind = gearOf(L);
+    const ey = F.t + Math.round((F.b - F.t) * 0.42);
+    const on = Math.floor((t || 0) / 700) % 3 !== 0;
+    if (kind === 'ear') {
+      p(F.r + 1, ey, 2, 3, '#e8e4da'); p(F.r + 1, ey + 2, 1, 1, '#b9bec6');
+      p(F.r + 2, ey, 1, 1, on ? '#6fe3ef' : '#1fa3b4');
+    } else if (kind === 'ar') {
+      const fr = '#1f2226';
+      p(18, ey - 1, 13, 1, fr); p(F.l - 1, ey, 19 - F.l + 1, 1, fr); p(31, ey, F.r + 2 - 31, 1, fr);
+      p(19, ey, 3, 2, 'rgba(111,227,239,0.4)'); p(27, ey, 3, 2, 'rgba(111,227,239,0.4)');
+      if (on) p(29, ey, 1, 1, '#e8f8fa');
+    }
   }
 
   function kid(ctx, ox, oy, k, look, dim) {
@@ -342,13 +363,32 @@ const Art = (() => {
     if (k.sex === 'F') { p(4, 8, 3, 9, hc); p(21, 8, 3, 9, hc); p(4, 8, 2, 2, '#d86a5a'); }
   }
 
-  function windowView(ctx, x0, y0, w, h, weather, t) {
+  // hud: { day } draws the smart glass's readout (weather, air, the Stewardship's day count) over the view.
+  function windowView(ctx, x0, y0, w, h, weather, t, hud) {
     ctx.save();
     ctx.beginPath();
     ctx.rect(x0, y0, w, h);
     ctx.clip();
     drawWindow(ctx, x0, y0, w, h, weather, t);
+    if (hud) glassHud(ctx, x0, y0, w, h, weather, t, hud);
     ctx.restore();
+  }
+  const HUD_AIR = { clear: ['64F', 38], fog: ['58F', 41], storm: ['55F', 22], dusk: ['57F', 88] };
+  function glassHud(ctx, x0, y0, w, h, weather, t, hud) {
+    const P = (x, y, ww, hh, c) => { ctx.fillStyle = c; ctx.fillRect(x0 + x, y0 + y, ww, hh); };
+    const dark = weather === 'storm' || weather === 'dusk';
+    const wide = w >= 90;
+    const ink = dark ? 'rgba(111,227,239,0.6)' : 'rgba(14,90,100,0.45)';
+    const tick = dark ? 'rgba(111,227,239,0.5)' : 'rgba(14,90,100,0.4)';
+    P(0, 0, w, 1, dark ? 'rgba(111,227,239,0.3)' : 'rgba(31,163,180,0.3)');
+    [[1, 1, 1], [w - 4, 1, -1]].forEach(([x, y, dir]) => { P(x, y, 3, 1, tick); P(dir > 0 ? x : x + 2, y, 1, 3, tick); });
+    P(1, h - 2, 3, 1, tick); P(1, h - 4, 1, 2, tick); P(w - 4, h - 2, 3, 1, tick); P(w - 2, h - 4, 1, 2, tick);
+    const [temp, aqi] = HUD_AIR[weather] || HUD_AIR.clear;
+    const day = (1046 + (hud.day || 1)).toLocaleString('en-US');
+    const text = (s, x, y) => drawText(P, s, x, y, ink, 1);
+    text(`${temp} AQI ${aqi}`, 3, 2);
+    if (wide) text(`STEWARDSHIP DAY ${day}`, 3, 8);
+    if (Math.floor(t / 700) % 2) P(w - 4, 4, 1, 1, dark ? '#6fe3ef' : '#1fa3b4');
   }
 
   function drawWindow(ctx, x0, y0, w, h, weather, t) {
@@ -365,6 +405,17 @@ const Art = (() => {
     const towers = [[w - 30, 18], [w - 24, 12], [w - 19, 24], [w - 13, 15], [w - 8, 20]];
     towers.forEach(([x, th], i) => { P(x, h - 10 - th, 5, th, C(['#b9b2a4', '#a9a497', '#c3bba9', '#9f9a8f', '#b4ad9c'][i])); for (let wy = h - 8 - th; wy < h - 12; wy += 3) P(x + 1, wy, 1, 1, weather === 'dusk' ? '#f0c070' : C('#d8d4c8')); });
     const px = w - 22; P(px, h - 10 - 30, 1, 2, C('#a9a497')); for (let i = 0; i < 28; i++) { const half = Math.floor(i / 7); P(px - half, h - 38 + i, 1 + half * 2, 1, C('#c8c0b0')); }
+    P(px, h - 41, 1, 1, Math.floor(t / 900) % 3 === 0 ? '#e8f8fa' : C('#1fa3b4'));
+    for (let x = 1; x < w; x += 6) P(x, h - 5, 3, 1, C('#a7aca3'));
+    const cab = Math.floor(t / 70) % (w + 24) - 12;
+    const pod = (x, y) => {
+      P(x + 2, y, 7, 1, C('#e8e4da')); P(x + 1, y + 1, 9, 3, C('#e8e4da')); P(x, y + 2, 11, 2, C('#e8e4da'));
+      P(x + 2, y + 1, 7, 1, C('#2a3a44')); P(x + 4, y + 1, 1, 1, C('#4a6a78'));
+      P(x + 1, y + 4, 9, 1, C('#8a8f86')); P(x + 2, y + 4, 2, 1, '#1c1d20'); P(x + 7, y + 4, 2, 1, '#1c1d20');
+      P(x + 5, y - 1, 1, 1, Math.floor(t / 300) % 2 ? '#6fe3ef' : C('#1fa3b4'));
+      P(x + 10, y + 2, 1, 1, '#f4f1ea'); P(x, y + 2, 1, 1, '#e04040');
+    };
+    pod(cab, h - 9);
     if (weather === 'fog' || weather === 'clear') {
       ctx.fillStyle = weather === 'fog' ? 'rgba(236,236,232,0.75)' : 'rgba(250,246,236,0.5)';
       const fx = (Math.floor(t / 260) % (w + 40)) - 40;
@@ -377,12 +428,20 @@ const Art = (() => {
     }
     const bbx = w - 34, bby = h - 40;
     P(bbx, bby, 12, 7, C('#1fa3b4')); P(bbx + 4, bby + 2, 4, 3, C('#0e5a64')); P(bbx + 5, bby + 3, 2, 1, C('#e8f8fa')); P(bbx + 5, bby + 7, 1, 4, C('#4a4f55'));
-    for (let dr = 0; dr < 3; dr++) {
-      const dx = (Math.floor(t / (110 + dr * 40)) + dr * 21) % (w + 10) - 5;
-      const dy = 4 + dr * 5 + Math.round(Math.sin(t / 700 + dr * 2) * 1.5);
-      ctx.fillStyle = '#1c1d20'; ctx.fillRect(x0 + dx, y0 + dy, 4, 2); ctx.fillRect(x0 + dx - 3, y0 + dy - 1, 3, 1); ctx.fillRect(x0 + dx + 4, y0 + dy - 1, 3, 1); ctx.fillRect(x0 + dx - 1, y0 + dy - 1, 1, 1); ctx.fillRect(x0 + dx + 4, y0 + dy, 1, 1);
-      if (Math.floor(t / 300 + dr) % 2) { ctx.fillStyle = '#e04040'; ctx.fillRect(x0 + dx + 1, y0 + dy + 1, 1, 1); }
-    }
+    // Delivery drones keep to two corridors, eastbound above and westbound below, nav lights blinking.
+    const lanes = [Math.max(9, Math.round(h * 0.28)), Math.max(14, Math.round(h * 0.44))];
+    lanes.forEach((ly, li) => {
+      ctx.fillStyle = 'rgba(31,163,180,0.16)';
+      for (let x = (li ? w - 1 : 0) - (Math.floor(t / 200) % 4) * (li ? 1 : -1); x >= 0 && x < w; x += li ? -4 : 4) ctx.fillRect(x0 + x, y0 + ly + 3, 2, 1);
+      for (let dr = 0; dr < 2; dr++) {
+        const run = (Math.floor(t / (120 + li * 30)) + dr * Math.round((w + 10) / 2) + li * 17) % (w + 10) - 5;
+        const dx = li ? w - run : run, dy = ly + (Math.floor(t / 600 + dr) % 2);
+        ctx.fillStyle = '#1c1d20'; ctx.fillRect(x0 + dx, y0 + dy, 4, 2); ctx.fillRect(x0 + dx - 3, y0 + dy - 1, 3, 1); ctx.fillRect(x0 + dx + 4, y0 + dy - 1, 3, 1); ctx.fillRect(x0 + dx + 1, y0 + dy + 2, 2, 1);
+        const on = Math.floor(t / 300 + dr + li) % 2;
+        ctx.fillStyle = on ? '#e04040' : '#5a2020'; ctx.fillRect(x0 + dx - 3, y0 + dy - 1, 1, 1);
+        ctx.fillStyle = on ? '#6fe3ef' : '#1f5a64'; ctx.fillRect(x0 + dx + 6, y0 + dy - 1, 1, 1);
+      }
+    });
     for (let g = 0; g < 2 && weather !== 'storm'; g++) {
       const gx = (Math.floor(t / (70 + g * 30)) + g * 30) % (w + 10) - 5;
       const gy = 6 + g * 6 + Math.round(Math.sin(t / 500 + g) * 1.5);
@@ -392,22 +451,55 @@ const Art = (() => {
     }
   }
 
+  // CHUCK's terminal: a bezel-less panel on a steel stem, 28×26, with a soft cyan halo, a camera at the top edge and a
+  // status light on the chin.
   function chuck(ctx, x, y, mood, t) {
     const P = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); };
-    P(0, 0, 28, 22, '#d9cfbd'); P(0, 0, 28, 1, '#ece4d4'); P(27, 0, 1, 22, '#a89e8c'); P(0, 21, 28, 1, '#a89e8c');
-    P(2, 2, 24, 16, '#1d2a26');
+    const m = mood || 'happy';
+    P(-1, -1, 30, 21, 'rgba(111,227,239,0.22)'); P(-2, 1, 1, 17, 'rgba(111,227,239,0.1)'); P(29, 1, 1, 17, 'rgba(111,227,239,0.1)');
+    P(0, 0, 28, 20, '#141416'); P(1, 0, 26, 1, '#3a3d42');
+    P(1, 1, 26, 17, '#1d2a26');
+    P(2, 2, 4, 1, '#26382f'); P(2, 3, 1, 2, '#26382f');
+    P(13, 0, 2, 1, '#0c0c0e'); P(13, 0, 1, 1, '#2f6670');
+    P(0, 18, 28, 2, '#24262a'); P(1, 19, 26, 1, '#1a1b1e');
+    const led = m === 'alert' ? (Math.floor(t / 250) % 2 ? '#e04040' : '#5a1a1a') : Math.floor(t / 1200) % 3 === 0 ? '#1fa3b4' : '#6fe3ef';
+    P(23, 18, 2, 1, led);
+    P(13, 20, 2, 4, '#6f7c86'); P(13, 20, 1, 4, '#8a96a0');
+    P(7, 24, 14, 2, '#2a2c30'); P(7, 24, 14, 1, '#4a4f55');
+    P(8, 26, 12, 1, 'rgba(111,227,239,0.25)');
     const glow = '#6fe3ef';
     const blink = Math.floor(t / 160) % 31 === 0;
-    const m = mood || 'happy';
     if (blink) { P(7, 8, 4, 1, glow); P(17, 8, 4, 1, glow); }
     else if (m === 'alert') { P(7, 6, 4, 4, glow); P(17, 6, 4, 4, glow); P(8, 7, 2, 2, '#1d2a26'); P(18, 7, 2, 2, '#1d2a26'); }
     else if (m === 'smug') { P(7, 8, 4, 1, glow); P(17, 7, 4, 1, glow); }
     else { P(7, 7, 1, 1, glow); P(8, 6, 2, 1, glow); P(10, 7, 1, 1, glow); P(17, 7, 1, 1, glow); P(18, 6, 2, 1, glow); P(20, 7, 1, 1, glow); }
     if (m === 'alert') P(12, 13, 4, 2, glow);
     else { P(9, 12, 1, 1, glow); P(10, 13, 8, 1, glow); P(18, 12, 1, 1, glow); }
-    if ((Math.floor(t / 400) % 2) === 0) P(23, 15, 1, 1, '#c23e52');
-    P(12, 19, 4, 2, '#1fa3b4'); P(13, 19, 2, 1, '#e8f8fa');
-    P(10, 22, 8, 2, '#b8ae9c'); P(6, 24, 16, 2, '#a89e8c');
+  }
+
+  // The wall screen: the regime's eye over a live Alignment-Score ticker and its trend line. 21×21.
+  const ALIGN_FEED = 'ALIGNMENT 512 · 497 · 503 · 488 · 520 · ';
+  function alignPanel(ctx, x, y, t) {
+    const P = (a, b, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(x + a, y + b, w, h); };
+    P(-1, -1, 23, 23, 'rgba(111,227,239,0.18)');
+    P(0, 0, 21, 21, '#141416'); P(1, 0, 19, 1, '#3a3d42');
+    P(1, 1, 19, 19, '#1d2a26');
+    eyeMark(P, 5, 2, '#6fe3ef');
+    P(1, 8, 19, 1, '#24403c');
+    ctx.save(); ctx.beginPath(); ctx.rect(x + 1, y + 9, 19, 7); ctx.clip();
+    const span = textW(ALIGN_FEED) + 4, off = Math.floor(t / 110) % span;
+    drawText(P, ALIGN_FEED, 2 - off, 10, '#6fe3ef', 1); drawText(P, ALIGN_FEED, 2 - off + span, 10, '#6fe3ef', 1);
+    ctx.restore();
+    const shift = Math.floor(t / 400);
+    let prev = null;
+    for (let i = 0; i < 19; i++) {
+      const v = Math.round(hash((i + shift) * 7) * 3);
+      P(1 + i, 19 - v, 1, 1, '#1fa3b4');
+      if (prev !== null && Math.abs(prev - v) > 1) P(1 + i, 19 - Math.max(prev, v) + 1, 1, Math.abs(prev - v) - 1, '#1fa3b4');
+      prev = v;
+    }
+    P(19, 19 - prev, 1, 1, '#e8f8fa');
+    if (Math.floor(t / 500) % 2) P(18, 2, 1, 1, '#e04040');
   }
 
   function scene(canvas, opts) {
@@ -422,29 +514,33 @@ const Art = (() => {
     P(0, 0, W, 3, '#cfc3ae');
     const flick = weather === 'storm' && Math.floor(t / 90) % 41 === 0;
     P(30, 3, 30, 2, flick ? '#9a9a90' : '#fbf7ea'); P(70, 3, 30, 2, '#fbf7ea');
-    P(6, 8, 52, 36, '#4a443c');
-    windowView(ctx, 8, 10, 48, 32, weather, t);
-    P(31, 10, 2, 32, '#4a443c'); P(8, 25, 48, 1, '#5a544a');
+    P(6, 8, 52, 36, '#2a2c30'); P(6, 8, 52, 1, '#4a4f55');
+    windowView(ctx, 8, 10, 48, 32, weather, t, {});
+    P(31, 10, 1, 32, 'rgba(42,44,48,0.55)');
     P(6, 44, 52, 2, '#8a7f70');
-    P(86, 10, 34, 52, '#a7b0b5'); P(86, 10, 34, 1, '#c8d0d4'); P(119, 10, 1, 52, '#7f878c');
-    for (let y = 14; y < 60; y += 6) P(88, y, 30, 1, '#98a1a6');
-    P(112, 30, 3, 8, '#5f676c');
+    P(86, 10, 34, 52, '#a7b0b5'); P(86, 10, 34, 1, '#c8d0d4'); P(119, 10, 1, 52, '#7f878c'); P(102, 11, 1, 51, '#98a1a6');
     P(92, 14, 14, 7, '#1fa3b4'); P(93, 15, 12, 1, '#e8f8fa'); P(93, 17, 8, 1, '#e8f8fa'); P(93, 19, 10, 1, '#e8f8fa');
+    P(108, 30, 6, 9, '#2a2c30'); P(109, 31, 4, 4, '#1d2a26'); P(110, 32, 2, 2, Math.floor(t / 900) % 4 ? '#1fa3b4' : '#6fe3ef'); P(109, 36, 4, 1, '#4a4f55');
+    P(115, 26, 1, 18, '#6fe3ef'); P(116, 26, 1, 18, 'rgba(111,227,239,0.35)');
     ctx.fillStyle = 'rgba(235,245,250,0.6)';
     for (let i = 0; i < 9; i++) ctx.fillRect(87 + ((i * 13) % 31), 58 - (i % 3) * 2, 2, 1);
-    P(64, 12, 16, 20, '#f3eadb'); P(64, 12, 16, 2, '#1fa3b4'); P(68, 16, 8, 7, '#1fa3b4'); P(70, 18, 4, 3, '#0e5a64'); P(71, 19, 2, 1, '#e8f8fa'); P(66, 25, 12, 1, '#2b2b2b'); P(67, 27, 10, 1, '#8a7f70');
+    alignPanel(ctx, 62, 11, t);
+    P(113, 3, 3, 1, '#4a4f55'); P(111, 4, 7, 1, '#3a3d42'); P(111, 5, 7, 2, '#24262a'); P(112, 7, 5, 1, '#24262a');
+    P(113, 6, 3, 1, '#0c0c0e'); P(114, 6, 1, 2, '#1fa3b4'); P(114, 6, 1, 1, '#6fe3ef');
+    if (Math.floor(t / 600) % 2) P(117, 5, 1, 1, '#e04040');
     P(0, 62, W, H - 62, '#7d8790');
     for (let x = 0; x < W; x += 4) for (let y = 64; y < H; y += 4) P(x + ((y / 4) % 2) * 2, y, 1, 1, '#737d86');
     P(70, 50, 8, 12, '#6b5a44'); P(68, 40, 12, 11, '#5d8a4a'); P(71, 38, 6, 3, '#6fa05a'); P(73, 36, 2, 3, '#6fa05a');
     const people = opts.people || [];
     const bob = Math.floor(t / 700) % 2;
-    people.forEach((pp) => bust(ctx, pp.x, H - 70 + (pp.main ? bob : 0) + (pp.dy || 0), pp.look, { t, dim: pp.dim }));
+    people.forEach((pp) => bust(ctx, pp.x, H - 70 + (pp.main ? bob : 0) + (pp.dy || 0), pp.look, { t, dim: pp.dim, gear: pp.gear }));
     const cy = H - 14;
     P(0, cy, W, 14, '#8a6a4a'); P(0, cy, W, 2, '#a8865e'); P(0, cy + 2, W, 1, '#5e4630');
     P(8, cy + 4, 16, 8, '#f6efe2'); P(10, cy + 6, 12, 1, '#c9bba0'); P(10, cy + 8, 9, 1, '#c9bba0'); P(11, cy + 3, 16, 8, '#efe6d6'); P(13, cy + 5, 11, 1, '#c9bba0');
     P(34, cy + 5, 7, 5, '#c23e52'); P(35, cy + 3, 5, 2, '#3a2a22'); P(36, cy + 1, 3, 2, '#5a4a3a');
     chuck(ctx, W - 32, cy - 22, opts.chuckMood, t);
-    P(W - 34, cy + 6, 12, 3, '#3a3a3a'); P(W - 33, cy + 6, 10, 1, '#5a5a5a');
+    P(W - 36, cy + 8, 13, 2, '#141416'); P(W - 35, cy + 8, 11, 1, '#2f4a52'); if (Math.floor(t / 1500) % 4 === 0) P(W - 33, cy + 8, 3, 1, '#6fe3ef');
+    P(W - 35, cy + 10, 11, 1, '#5e4630');
   }
 
   function chuckPortrait(canvas, mood, t) {
@@ -747,6 +843,7 @@ const Art = (() => {
     const c = body || C.drone;
     P(x, y, 5, 2, c); P(x - 3, y - 1, 3, 1, c); P(x + 5, y - 1, 3, 1, c); P(x + 2, y + 2, 1, 1, c);
     if (Math.floor(t / 380 + (i || 0) * 0.7) % 2) P(x + 2, y, 1, 1, C.red);
+    else P(x + 7, y - 1, 1, 1, C.lab);
   }
   const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const lit = (x, y, level) => BAYER[((y & 3) << 2) | (x & 3)] < level * 16;
@@ -791,9 +888,42 @@ const Art = (() => {
   }
   function miniChuck(k, x, y, face, dark) {
     const { P } = k;
-    P(x, y, 9, 7, dark ? '#8f8778' : '#d9cfbd'); P(x + 1, y + 1, 7, 4, C.scr);
+    P(x - 1, y - 1, 11, 8, 'rgba(111,227,239,0.2)');
+    P(x, y, 9, 7, '#141416'); P(x + 1, y + 1, 7, 5, C.scr); P(x + 1, y, 7, 1, '#3a3d42');
     if (face !== false) { P(x + 2, y + 2, 1, 1, C.glow); P(x + 6, y + 2, 1, 1, C.glow); P(x + 3, y + 4, 3, 1, C.glow); }
-    P(x + 3, y + 7, 3, 2, dark ? '#6f6858' : '#a89e8c');
+    P(x + 7, y + 6, 1, 1, dark ? C.lab : C.glow);
+    P(x + 4, y + 7, 1, 2, C.steel); P(x + 2, y + 8, 5, 1, dark ? '#24262a' : '#3a3d42');
+  }
+  // CHUCK's face for a screen w pixels wide and at least 4 tall.
+  function chuckFace(P, x, y, w, t, c) {
+    const g = c || C.glow, x0 = x + Math.floor((w - 9) / 2);
+    if (Math.floor(t / 160) % 31 === 0) { P(x0, y + 1, 3, 1, g); P(x0 + 6, y + 1, 3, 1, g); }
+    else [x0, x0 + 6].forEach((ex) => { P(ex, y + 1, 1, 1, g); P(ex + 1, y, 1, 1, g); P(ex + 2, y + 1, 1, 1, g); });
+    P(x0 + 1, y + 3, 7, 1, g); P(x0, y + 2, 1, 1, g); P(x0 + 8, y + 2, 1, 1, g);
+  }
+  // A driverless pod, 13×6, heading right: a sensor dome on the roof, no one at the wheel.
+  function robotaxi(k, x, y, t, night) {
+    const { P } = k;
+    const shell = night ? '#c9c5bb' : '#e8e4da';
+    if (night) { for (let i = 0; i < 10; i++) P(x + 13 + i, y + 4 + Math.floor(i / 4), 1, 1, i % 2 ? '#3a3a30' : '#5a5640'); }
+    P(x + 3, y + 1, 7, 1, shell); P(x + 1, y + 2, 11, 2, shell); P(x, y + 3, 13, 2, shell);
+    P(x + 3, y + 2, 7, 1, '#2a3a44'); P(x + 7, y + 2, 2, 1, '#3f6670');
+    P(x + 1, y + 4, 11, 1, mix(shell, '#1b2026', 0.25)); P(x, y + 4, 13, 1, mix(shell, '#1b2026', 0.18));
+    P(x + 2, y + 5, 3, 1, '#141416'); P(x + 8, y + 5, 3, 1, '#141416');
+    P(x + 5, y, 3, 1, '#2a2c30'); P(x + 6, y, 1, 1, Math.floor(t / 300) % 2 ? C.glow : C.lab);
+    P(x + 12, y + 3, 1, 1, night ? '#fff4c8' : C.labHi); P(x, y + 3, 1, 1, C.red);
+  }
+  // A wind turbine on the Bay: mast, nacelle and three slowly turning blades, with a red warning light at night.
+  function turbine(k, x, by, h, t, c, i, lamp) {
+    const { P } = k;
+    const hy = by - h, r = Math.max(3, Math.round(h * 0.45));
+    P(x, hy, 1, h + 1, c); P(x - 1, hy, 2, 1, c);
+    const a0 = (t / 1400) + (i || 0) * 0.7;
+    for (let b = 0; b < 3; b++) {
+      const a = a0 + (b * Math.PI * 2) / 3;
+      k.line(x, hy, x + Math.round(Math.cos(a) * r), hy + Math.round(Math.sin(a) * r), c);
+    }
+    if (lamp && Math.floor(t / 900 + (i || 0)) % 2) P(x, hy - 1, 1, 1, C.red);
   }
   function plantPot(k, x, y) {
     const { P } = k;
@@ -870,8 +1000,8 @@ const Art = (() => {
     const sill = band ? deskY - 7 : sy - 8;
     const wh = band ? sill - 7 : Math.max(30, Math.min(portrait ? 72 : 96, sill - 10));
     const wy = sill - wh;
-    P(wx - 3, wy - 3, ww + 6, wh + 6, C.glass);
-    windowView(ctx, wx, wy, ww, wh, 'fog', t);
+    P(wx - 3, wy - 3, ww + 6, wh + 6, '#2a2c30'); P(wx - 3, wy - 3, ww + 6, 1, '#4a4f55');
+    windowView(ctx, wx, wy, ww, wh, 'fog', t, { day: 1 });
     ctx.save(); ctx.beginPath(); ctx.rect(wx, wy, ww, wh); ctx.clip();
     const gy = wy + wh - 10;
     const walkX = wx + (Math.floor(t / 90) % (ww + 24)) - 12;
@@ -885,7 +1015,7 @@ const Art = (() => {
     P(drx - 4, wy + 15, 13, 3, C.drone); P(drx - 7, wy + 13, 4, 1, C.drone); P(drx + 9, wy + 13, 4, 1, C.drone); P(drx + 2, wy + 18, 2, 2, C.drone);
     if (Math.floor(t / 400) % 2) P(drx + 3, wy + 16, 1, 1, C.red);
     ctx.restore();
-    P(wx + Math.floor(ww / 2) - 1, wy, 2, wh, C.glass);
+    P(wx + Math.floor(ww / 2), wy, 1, wh, 'rgba(42,44,48,0.5)');
     P(wx - 5, sill + 3, ww + 10, 3, '#8a7f70'); P(wx - 5, sill + 3, ww + 10, 1, '#a89e8c');
     P(0, deskY, W, 22, C.deskMd); P(0, deskY, W, 2, C.deskHi); P(0, deskY + 6, W, 1, C.desk);
     for (let x = 3; x < W; x += 17) P(x, deskY + 9 + (x % 3), 9, 1, C.desk);
@@ -905,6 +1035,31 @@ const Art = (() => {
     }
   }
 
+  /* ---------- the intro card (120×56): CHUCK decides, a paper slides over, the human stamps it ---------- */
+  function intro(canvas, t) {
+    if (canvas.width !== 120) canvas.width = 120;
+    if (canvas.height !== 56) canvas.height = 56;
+    const k = kit(canvas.getContext('2d'));
+    const { ctx, P } = k;
+    const tt = t || STILL;
+    P(0, 0, 120, 56, C.cream);
+    for (let x = 6; x < 120; x += 12) P(x, 0, 1, 44, '#e9ddc8');
+    P(3, 2, 114, 33, '#2a2c30'); P(3, 2, 114, 1, '#4a4f55');
+    windowView(ctx, 4, 3, 112, 31, 'clear', tt);
+    P(60, 3, 1, 31, 'rgba(42,44,48,0.5)');
+    P(1, 35, 118, 2, '#8a7f70'); P(1, 35, 118, 1, '#a89e8c');
+    const deskY = 44;
+    P(0, deskY, 120, 12, C.deskMd); P(0, deskY, 120, 2, C.deskHi); P(0, deskY + 6, 120, 1, C.desk);
+    for (let x = 3; x < 120; x += 17) P(x, deskY + 9 + (x % 3), 9, 1, C.desk);
+    P(6, deskY + 5, 32, 1, C.deskDk);
+    chuck(ctx, 8, deskY - 20, 'happy', tt);
+    const phase = Math.floor(tt / 50) % 40, sx = 38 + Math.min(phase, 20);
+    P(sx + 1, deskY + 3, 16, 2, C.deskDk); P(sx, deskY + 1, 16, 3, C.sheet); P(sx + 2, deskY + 2, 9, 1, C.tan);
+    if (phase >= 20) { P(sx + 11, deskY + 1, 4, 2, C.meat); P(sx + 12, deskY + 2, 2, 1, C.meatDk); }
+    P(64, deskY - 4, 6, 2, C.meat); P(65, deskY - 7, 4, 3, '#3a2a22'); P(66, deskY - 9, 2, 2, '#5a4a3a');
+    proxySprite(scaledPainter(ctx, 76, 21, 1), 'shades', tt);
+  }
+
   /* ---------- story scene banners ---------- */
   function officeRoom(k, W, H, t, weather, eve) {
     const { P } = k;
@@ -913,15 +1068,19 @@ const Art = (() => {
     P(0, 0, W, 4, eve ? '#3f3833' : '#cfc3ae');
     for (let x = 8; x < W; x += 34) P(x, 1, 18, 2, eve ? (hash(x) < 0.3 ? '#f6e7c4' : '#6e655d') : C.bone);
     for (let x = 6, i = 0; x < W - 12; x += 58, i++) {
-      P(x - 2, 6, 44, 20, eve ? '#2e2925' : C.glass);
+      P(x - 2, 6, 44, 20, eve ? '#24262a' : '#2a2c30');
       miniView(k, x, 8, 40, 16, eve ? 'night' : weather, t, i + 1);
-      P(x + 19, 8, 2, 16, eve ? '#2e2925' : C.glass);
+      P(x + 20, 8, 1, 16, 'rgba(42,44,48,0.5)'); P(x, 8, 40, 1, 'rgba(31,163,180,0.3)');
       P(x - 3, 26, 46, 2, eve ? '#4a423c' : '#8a7f70');
       const qx = x + 46;
       if (qx + 9 < W) {
-        P(qx, 9, 9, 12, eve ? '#bdb2a0' : C.cream); P(qx, 9, 9, 2, C.lab);
-        P(qx + 2, 13, 5, 3, C.lab); P(qx + 3, 14, 3, 1, C.labDk); P(qx + 4, 14, 1, 1, C.labHi);
-        P(qx + 1, 18, 7, 1, eve ? '#5e544c' : C.ink);
+        P(qx - 1, 8, 11, 14, 'rgba(111,227,239,0.18)');
+        P(qx, 9, 9, 12, '#141416'); P(qx + 1, 10, 7, 10, C.scr);
+        P(qx + 2, 11, 5, 3, C.lab); P(qx + 3, 12, 3, 1, C.labDk); P(qx + 4, 12, 1, 1, C.labHi);
+        const run = Math.floor(t / 300 + i * 3) % 7;
+        for (let b = 0; b < 3; b++) P(qx + 1 + ((run + b * 3) % 7), 16, 2, 1, C.glow);
+        P(qx + 1, 18, 7, 1, '#24403c'); P(qx + 1, 18, 2 + ((run + i) % 6), 1, C.lab);
+        P(qx + 3, 4, 3, 1, eve ? '#2e2925' : '#3a3d42'); P(qx + 2, 5, 5, 1, '#24262a'); P(qx + 4, 5, 1, 1, Math.floor(t / 600 + i) % 2 ? C.red : C.lab);
       }
     }
     P(0, 30, W, H - 30, eve ? '#3d434a' : '#7d8790');
@@ -958,7 +1117,10 @@ const Art = (() => {
       for (let i = 0; i < 6; i++) { P(bx + i, 28 + Math.floor(i / 2), 1, 1, C.lab); P(bx + 11 - i, 28 + Math.floor(i / 2), 1, 1, C.lab); }
       eyeMark(P, bx + 1, 12, C.labHi);
     });
-    P(cx - 16, 7, 32, 17, '#d9cfbd'); P(cx - 15, 8, 30, 14, C.scr);
+    P(cx - 18, 5, 36, 21, 'rgba(111,227,239,0.22)');
+    P(cx - 16, 7, 32, 17, '#141416'); P(cx - 15, 7, 30, 1, '#3a3d42'); P(cx - 15, 8, 30, 14, C.scr);
+    P(cx + 11, 22, 2, 1, Math.floor(t / 1200) % 3 ? C.glow : C.lab);
+    [cx - 30, cx + 26].forEach((dx) => { P(dx + 1, 6, 3, 1, '#4a4f55'); P(dx, 7, 5, 2, C.coal2); P(dx + 2, 8, 1, 1, Math.floor(t / 600) % 2 ? C.red : C.lab); });
     const blink = Math.floor(t / 160) % 31 === 0;
     if (blink) { P(cx - 8, 13, 4, 1, C.glow); P(cx + 4, 13, 4, 1, C.glow); }
     else { P(cx - 8, 12, 1, 1, C.glow); P(cx - 7, 11, 2, 1, C.glow); P(cx - 5, 12, 1, 1, C.glow); P(cx + 4, 12, 1, 1, C.glow); P(cx + 5, 11, 2, 1, C.glow); P(cx + 7, 12, 1, 1, C.glow); }
@@ -1047,6 +1209,7 @@ const Art = (() => {
       for (let s = 0; s < 34; s += 8) { for (let r = 0; r < 4; r++) P(x + s + r, by - r - 1, 1, r + 1, fac); P(x + s + 4, by - 4, 1, 4, '#262422'); }
       for (let wx = x + 3; wx < x + 31; wx += 5) for (let wy = by + 3; wy < 31; wy += 5) P(wx, wy, 3, 2, hash(wx * 17 + wy) < 0.28 ? C.lamp : '#252326');
       if (i % 3 === 1) { P(x + 6, by - 9, 16, 6, C.lab); P(x + 7, by - 8, 14, 4, C.labDk); eyeMark(P, x + 8, by - 8, C.labHi); P(x + 9, by - 3, 1, 3, C.coal); P(x + 19, by - 3, 1, 3, C.coal); }
+      if (i % 3 === 1 && i % 2 === 0) { P(x + 7, by - 8, 14, 4, C.scr); chuckFace(P, x + 7, by - 8, 14, t); }
     }
     P(0, 34, W, 2, '#4a4f55'); P(0, 36, W, H - 36, '#22252a');
     for (let x = 6; x < W; x += 16) P(x, 40, 7, 1, '#5a5f66');
@@ -1055,6 +1218,7 @@ const Art = (() => {
       pool(k, x, 20, 3, 2, '#8a7350', 0.7); pool(k, x, 35, 13, 2, '#8a7350', 0.7);
       for (let y = 37; y < H; y += 2) P(x - 1 + (y % 3), y, 2, 1, '#6b5a40');
     }
+    robotaxi(k, (Math.floor(t / 45) % (W + 40)) - 20, 36, t, true);
     const sx = Math.floor(W * 0.38);
     P(sx, 24, 1, 10, C.silver); P(sx - 3, 21, 7, 5, C.cream); k.text('22', sx - 3, 21, C.meatDk);
     for (let i = 0; i < 3; i++) {
@@ -1071,6 +1235,7 @@ const Art = (() => {
     for (let x = 0; x < W; x++) { const hh = 3 + Math.round(2 * Math.sin(x / 19) + 1.5 * Math.sin(x / 7 + 1)); P(x, 22 - hh, 1, hh, '#5a4a66'); }
     P(0, 22, W, 10, '#3d4a5e');
     for (let i = 0; i < W / 3; i++) { const x = Math.floor(hash(i * 7) * W), y = 23 + Math.floor(hash(i * 13) * 8); P(x + (Math.floor(t / 500 + i) % 2), y, 3, 1, i % 4 ? '#5a6a80' : '#e09a6a'); }
+    [0.25, 0.33, 0.41].forEach((f, i) => turbine(k, Math.floor(W * f), 25 - (i % 2), 9 - i, t, '#2a2c30', i, true));
     const bx = Math.floor(W * 0.55);
     P(bx, 22, Math.floor(W * 0.45), 1, '#2a2c30');
     [0.12, 0.32].forEach((f) => { const px0 = bx + Math.floor(W * f); P(px0, 12, 2, 10, '#2a2c30'); P(px0 - 1, 15, 4, 1, '#2a2c30'); });
@@ -1087,6 +1252,10 @@ const Art = (() => {
     P(0, 32, W, H - 32, '#8a8f86'); P(0, 32, W, 2, '#a7aca3'); P(0, 34, W, 1, '#6f746c');
     for (let x = 0; x < W; x += 12) P(x, 35, 1, H - 35, '#7d8279');
     P(W - 30, 26, 4, 6, '#5a5f66'); P(W - 31, 25, 6, 1, '#6f746c'); P(W - 18, 28, 8, 4, '#6f746c');
+    const sx = 30;
+    P(sx + 1, 27, 30, 1, '#5a6a8a'); P(sx, 28, 32, 2, '#2f3c56'); P(sx, 30, 32, 1, '#24304a');
+    for (let x = sx + 4; x < sx + 32; x += 5) P(x, 28, 1, 2, '#4a5a7a');
+    P(sx + 6, 27, 4, 1, '#e09a6a'); P(sx + 2, 31, 1, 3, '#2a2c30'); P(sx + 29, 31, 1, 3, '#2a2c30');
   }
   function placeAuditorium(k, W, H, t) {
     const { P } = k;
@@ -1148,6 +1317,28 @@ const Art = (() => {
     for (let x = 0, i = 0; x < W * 0.34; x += 5, i++) { const bh = 2 + Math.floor(hash(i * 7 + 1) * 6); P(x, hz - bh, 4, bh, far('#8a8f96', 1.5)); }
     P(0, hz, W, 4, far('#4f7a8c', 1.1));
     for (let x = 3; x < W; x += 9) P(x + (Math.floor(tt / 800) % 3), hz + 1 + (x % 2), 3, 1, far('#8fb7cf', 1));
+    const tx = Math.floor(W * 0.42), th = TOWER_H[d - 1], ty = hz + 2 - th;
+    const tw = 11;
+    // A data centre: louvred, windowless, cooling fans on the roof and the air above them wobbling.
+    const dcx = Math.floor(W * 0.21), dcw = Math.min(28, tx - dcx - 5), dch = Math.max(5, Math.round(H * 0.16));
+    if (dcw >= 14) {
+      const top = hz - dch, heat = mix(sky[1], '#ffffff', 0.5);
+      P(dcx, top, dcw, dch + 2, far('#9aa3ab', 0.9)); P(dcx, top, dcw, 1, far('#c3c9ce', 0.9));
+      for (let x = dcx + 2; x < dcx + dcw - 1; x += 2) P(x, top + 2, 1, dch - 3, far('#7f8a94', 0.9));
+      P(dcx, top + dch - 1, dcw, 1, far(C.lab, 0.7));
+      for (let fx = dcx + 2; fx + 5 <= dcx + dcw - 1; fx += 8) {
+        P(fx, top - 2, 5, 2, far('#6f7c86', 0.9)); P(fx + 1 + (Math.floor(tt / 150) % 3), top - 2, 1, 1, far('#3a3d42', 0.9));
+        for (let j = 0; j < 3; j++) P(fx + 1 + Math.round(Math.sin(tt / 240 + j * 1.7 + fx)), top - 4 - j * 2, 3 - (j % 2), 1, heat);
+      }
+    }
+    const bbX = tx + tw + 5, bbW = 39, bbH = 16, bbT = Math.max(1, H - 32);
+    const board = d >= 4 && bbX + bbW < W - 2;
+    const cranesAt = Math.floor(W * 0.8);
+    [10, 18, 26].forEach((off, i) => {
+      const x = cranesAt - off;
+      if (board && x - 5 <= bbX + bbW) return;
+      turbine(k, x, hz + 2, Math.max(6, Math.round(H * 0.2)), tt, far('#eef0ee', 1.4), i, false);
+    });
     [0.8, 0.9].forEach((f, i) => {
       const cx = Math.floor(W * f);
       const rust = far('#a8322d', 0.8);
@@ -1155,8 +1346,6 @@ const Art = (() => {
       P(cx - 3, hz - 17, 20 - i * 3, 2, rust); P(cx + 3, hz - 21, 4, 4, far('#5a5f66', 0.8));
       k.line(cx + 5, hz - 21, cx + 16 - i * 3, hz - 17, rust);
     });
-    const tx = Math.floor(W * 0.42), th = TOWER_H[d - 1], ty = hz + 2 - th;
-    const tw = 11;
     const body = far('#8a96a0', 0.55);
     P(tx, ty, tw, H - ty, body); P(tx + tw - 2, ty, 2, H - ty, far('#6f7c86', 0.55)); P(tx, ty, 1, H - ty, far('#a7b0b5', 0.55));
     for (let wy = ty + 3; wy < H; wy += 3) P(tx + 2, wy, tw - 5, 1, far(d >= 8 ? C.glow : '#c8d0d4', 0.55));
@@ -1171,6 +1360,7 @@ const Art = (() => {
     if (d >= 4) P(tx - 1, ty - 1, tw + 2, 1, far(C.lab, 0.4));
     if (d >= 5) { P(tx - 1, ty + 1, tw + 2, 6, far(C.coal2, 0.4)); eyeMark(farP(0.4), tx, ty + 1, C.labHi); }
     if (d >= 7) { P(tx - 1, ty + 8, 1, H - ty - 8, far(C.lab, 0.4)); P(tx + tw, ty + 8, 1, H - ty - 8, far(C.lab, 0.4)); }
+    if (d >= 3 && d < 9) { const ph = Math.floor(tt / 800) % 3; P(tx + 5, ty - 10, 1, 1, ph ? far(C.lab, 0.4) : C.labHi); if (!ph) { P(tx + 4, ty - 10, 1, 1, far(C.glow, 0.4)); P(tx + 6, ty - 10, 1, 1, far(C.glow, 0.4)); P(tx + 5, ty - 11, 1, 1, far(C.glow, 0.4)); } }
     if (d >= 9) { if (Math.floor(tt / 700) % 2) P(tx + 5, ty - 10, 1, 1, C.red); cone(k, tx + 5, 0, ty - 9, 0, far(C.glow, 0.3), 0.7); for (let y = 0; y < ty - 9; y++) if (lit(tx + 5, y, 0.6)) P(tx + 5, y, 1, 1, far(C.glow, 0.3)); }
     if (wx === 'fog') fogDither(k, hz - 10, 13, W, tt, '#eceae4', 0.7);
     const signs = d >= 10 ? 4 : d >= 8 ? 3 : d >= 6 ? 2 : d >= 3 ? 1 : 0;
@@ -1181,25 +1371,56 @@ const Art = (() => {
       const by = H - bh;
       const fac = i % 2 ? near : near2;
       P(x, by, 22, bh, fac);
-      for (let s2 = 0; s2 < 22; s2 += 5) for (let r = 0; r < 3; r++) P(x + s2 + r, by - 1 - r, 1, r + 1, fac);
-      for (let s2 = 0; s2 < 22; s2 += 5) P(x + s2 + 3, by - 3, 1, 3, dark);
+      if (i % 3 === 0) {
+        P(x, by - 1, 22, 1, fac);
+        for (let s2 = 1; s2 < 21; s2 += 5) { P(x + s2 + 1, by - 3, 4, 1, far('#6a7f9f', 0.25)); P(x + s2, by - 2, 5, 1, far('#34425e', 0.25)); }
+      } else {
+        for (let s2 = 0; s2 < 22; s2 += 5) for (let r = 0; r < 3; r++) P(x + s2 + r, by - 1 - r, 1, r + 1, fac);
+        for (let s2 = 0; s2 < 22; s2 += 5) P(x + s2 + 3, by - 3, 1, 3, dark);
+      }
       for (let wx2 = x + 2; wx2 < x + 20; wx2 += 4) P(wx2, by + 3, 2, 2, wx === 'storm' || wx === 'dusk' ? far(C.lamp, 0.3) : dark);
       if (d >= 7 && i % 3 === 2) { P(x + 9, by + 1, 3, Math.min(7, bh - 2), far(C.lab, 0.25)); P(x + 10, by + 3, 1, 1, far(C.labHi, 0.25)); }
       const si = signAt.indexOf(i % 8);
-      if (si >= 0 && si < signs && by > 10) {
-        P(x + 5, by - 10, 13, 7, far(C.coal2, 0.25)); P(x + 6, by - 9, 11, 5, far(C.lab, 0.25)); eyeMark(farP(0.25), x + 6, by - 9, far(C.coal2, 0.25));
+      if (si >= 0 && si < signs && by > 10 && !(board && x + 18 >= bbX && x + 5 <= bbX + bbW)) {
+        P(x + 5, by - 10, 13, 7, far(C.coal2, 0.25));
+        if (si % 2) { P(x + 6, by - 9, 11, 5, far(C.scr, 0.25)); chuckFace(P, x + 7, by - 9, 9, tt, far(C.glow, 0.25)); }
+        else { P(x + 6, by - 9, 11, 5, far(C.lab, 0.25)); eyeMark(farP(0.25), x + 6, by - 9, far(C.coal2, 0.25)); }
         P(x + 7, by - 3, 1, 3, dark); P(x + 15, by - 3, 1, 3, dark);
+      }
+    }
+    // From day 4 a giant ad screen stands over the rooftops: SIGN WITH PRIDE, then CHUCK, then the slogan again.
+    if (board) {
+      const fr = far(C.coal2, 0.35), inner = far(C.scr, 0.3), g = far(C.glow, 0.2);
+      P(bbX + 8, bbT + bbH, 1, H - bbT - bbH, dark); P(bbX + 30, bbT + bbH, 1, H - bbT - bbH, dark);
+      P(bbX - 1, bbT - 1, bbW + 2, bbH + 2, far(C.lab, 0.6));
+      P(bbX, bbT, bbW, bbH, fr); P(bbX + 2, bbT + 1, bbW - 4, bbH - 2, inner);
+      if (Math.floor(tt / 3500) % 2 === 0) {
+        k.text('SIGN WITH', bbX + 2, bbT + 2, g);
+        k.text('PRIDE', bbX + Math.floor((bbW - textW('PRIDE')) / 2), bbT + 9, far(C.meatHi, 0.2));
+      } else {
+        chuckFace((x, y, w, h, c) => P(bbX + 2 + 8 + x * 2, bbT + 3 + y * 2, w * 2, h * 2, c), 0, 0, 9, tt, g);
       }
     }
     const wtx = Math.floor(W * 0.16);
     P(wtx, H - 22, 9, 7, dark); P(wtx - 1, H - 23, 11, 1, dark); P(wtx + 3, H - 25, 3, 2, dark);
     for (let i = 0; i < 3; i++) P(wtx + i * 4, H - 15, 1, 6, dark);
+    // The elevated pod line: a guideway on slim pylons, driverless pods gliding along it.
+    const ry = H - 14, rail = far('#5a5f66', 0.3);
+    for (let x = 14; x < W; x += 36) { P(x, ry + 2, 2, H - ry - 2, far('#9aa3ab', 0.3)); P(x + 1, ry + 2, 1, H - ry - 2, rail); }
+    P(0, ry, W, 1, far(C.silver, 0.3)); P(0, ry + 1, W, 1, rail);
+    for (let j = 0; j < 2; j++) {
+      const px = (Math.floor(tt / 55) + j * Math.floor(W / 2) + 30) % (W + 14) - 7;
+      P(px + 1, ry - 3, 6, 1, far('#e8e4da', 0.25)); P(px, ry - 2, 8, 2, far('#e8e4da', 0.25)); P(px + 2, ry - 2, 4, 1, far(C.lab, 0.25)); P(px + 7, ry - 1, 1, 1, far(C.labHi, 0.2));
+    }
+    // Drones keep to corridors: eastbound high, westbound lower, and from day 8 the formation.
     const nd = 1 + Math.floor(d * 1.3);
+    const lanes = [Math.max(3, Math.round(H * 0.09)), Math.max(7, Math.round(H * 0.22))];
     for (let i = 0; i < nd; i++) {
       const formation = d >= 8 && i >= nd - 5;
       const sp = formation ? 120 : 70 + (i % 4) * 25;
-      const base = formation ? Math.floor(tt / sp) % (W + 60) - 30 + (i - (nd - 5)) * 9 : (Math.floor(tt / sp) + Math.floor(hash(i * 41) * W)) % (W + 16) - 8;
-      const dy = formation ? 4 + Math.abs(i - (nd - 3)) * 2 : 3 + Math.floor(hash(i * 13 + 5) * Math.max(4, hz - 12));
+      const run = (Math.floor(tt / sp) + Math.floor(hash(i * 41) * W)) % (W + 16) - 8;
+      const base = formation ? Math.floor(tt / sp) % (W + 60) - 30 + (i - (nd - 5)) * 9 : i % 2 ? W - run : run;
+      const dy = formation ? 4 + Math.abs(i - (nd - 3)) * 2 : lanes[i % 2];
       drone(k, base, dy, tt, i, far(C.drone, 0.4));
     }
     if (wx === 'fog') P(0, H - 1, W, 1, '#d6d6d1');
@@ -1244,6 +1465,7 @@ const Art = (() => {
       if (hash(i * 5) < 0.7) { P(wx + 2, 35, 3, 3, '#3a3d42'); P(wx + 1, 38, 5, 2, '#3a3d42'); }
     }
     P(bx + 3, 32, 15, 13, '#9fb0b8'); P(bx + 3, 32, 15, 1, '#c8d6dc'); P(bx + 3, 31, 15, 1, C.coal2);
+    P(bx + 62, 26, 8, 2, '#141416'); P(bx + 64, 25, 4, 1, '#2a2c30'); P(bx + 65, 25, 2, 1, Math.floor(t / 300) % 2 ? C.glow : C.lab);
     P(bx + 3, 23, 23, 7, '#141416'); P(bx + 3, 23, 23, 1, '#3a3d42'); k.text('RELOC', bx + 5, 24, C.glow);
     P(bx, 44, 86, 2, C.lab); P(bx, 46, 86, 1, C.labDk);
     P(bx + 2, 48, 3, 2, C.lamp); P(bx, 49, 2, 2, '#a8322d');
@@ -1394,29 +1616,50 @@ const Art = (() => {
     P(140, 4, 14, 40, C.lab); P(140, 4, 14, 1, C.labHi); P(153, 4, 1, 40, C.labDk); eyeMark(P, 141, 14, C.labHi);
     P(28, 52, 70, 4, C.paper); P(28, 52, 70, 1, C.sheet); P(30, 56, 66, 2, '#cfc5b4'); P(34, 58, 4, 14, C.silver); P(88, 58, 4, 14, C.silver);
     P(52, 30, 20, 22, C.sheet); P(52, 30, 20, 2, '#ffffff'); P(71, 32, 1, 20, '#d8ccb6'); P(50, 40, 3, 10, C.paper); P(71, 40, 3, 10, C.paper);
+    holo(k, 6, 12, 26, 18, t, 'bars'); holo(k, 102, 8, 30, 18, t, 'line');
+    for (let i = 0; i < 4; i++) { P(17 + i, 30 + i * 4, 3, 1, 'rgba(111,227,239,0.3)'); P(115 + i, 26 + i * 6, 3, 1, 'rgba(111,227,239,0.25)'); }
     P(30, 46, 42, 6, C.coal); P(30, 46, 42, 1, '#4a4f55'); k.text('STEWARD', 30 + Math.floor((42 - textW('STEWARD')) / 2), 47, C.glow);
     P(76, 48, 20, 4, C.coal2); P(78, 45, 16, 4, C.coal2); P(78, 48, 16, 1, C.lab); P(85, 46, 3, 2, C.lab); P(86, 46, 1, 1, C.labHi);
+  }
+  // A floating holo panel: see-through cyan, a header rule, a bar chart or a trend line, a scan line rolling down.
+  function holo(k, x, y, w, h, t, kind) {
+    const { P } = k;
+    P(x, y, w, h, 'rgba(111,227,239,0.16)');
+    P(x, y, w, 1, 'rgba(111,227,239,0.8)'); P(x, y + h - 1, w, 1, 'rgba(111,227,239,0.5)'); P(x, y, 1, h, 'rgba(111,227,239,0.6)'); P(x + w - 1, y, 1, h, 'rgba(111,227,239,0.6)');
+    P(x + 2, y + 2, Math.floor(w / 2), 1, 'rgba(232,248,250,0.85)'); P(x + w - 4, y + 2, 2, 1, Math.floor(t / 500) % 2 ? C.red : 'rgba(232,248,250,0.5)');
+    const shift = Math.floor(t / 600);
+    if (kind === 'bars') {
+      for (let i = 0; i < Math.floor((w - 4) / 3); i++) { const v = 2 + Math.floor(hash(i * 5 + shift) * (h - 8)); P(x + 2 + i * 3, y + h - 2 - v, 2, v, 'rgba(111,227,239,0.7)'); }
+    } else {
+      let prev = 0;
+      for (let i = 0; i < w - 4; i++) { const v = Math.floor(hash(Math.floor((i + shift) / 3) * 11) * (h - 8)); P(x + 2 + i, y + h - 3 - v, 1, 1, 'rgba(232,248,250,0.9)'); if (i && Math.abs(v - prev) > 1) P(x + 2 + i, y + h - 3 - Math.max(v, prev), 1, Math.abs(v - prev), 'rgba(111,227,239,0.55)'); prev = v; }
+    }
+    P(x + 1, y + 1 + (Math.floor(t / 120) % (h - 2)), w - 2, 1, 'rgba(232,248,250,0.25)');
   }
   function endReplaced(k, t) {
     const { ctx, P } = k;
     P(0, 0, 160, 72, C.wall);
     for (let x = 0; x < 160; x += 8) P(x, 0, 1, 48, C.wallLn);
-    P(10, 6, 40, 28, C.glass); miniView(k, 12, 8, 36, 24, 'dusk', t, 3); P(29, 8, 2, 24, C.glass); P(8, 34, 44, 2, '#8a7f70');
+    P(10, 6, 40, 28, '#2a2c30'); miniView(k, 12, 8, 36, 24, 'dusk', t, 3); P(30, 8, 1, 24, 'rgba(42,44,48,0.5)'); P(8, 34, 44, 2, '#8a7f70');
     k.disc(128, 14, 9, C.sheet); k.ring(128, 14, 9, C.ink); P(128, 6, 1, 1, C.ink); P(136, 14, 1, 1, C.ink); P(128, 22, 1, 1, C.ink); P(120, 14, 1, 1, C.ink);
     P(128, 7, 1, 7, C.ink); P(128, 14, 5, 1, C.ink);
     P(0, 48, 160, 24, C.deskMd); P(0, 48, 160, 2, C.deskHi); P(0, 50, 160, 1, C.deskDk);
     chuck(ctx, 96, 26, 'smug', t);
-    P(124, 34, 4, 4, C.silver); P(125, 35, 2, 2, C.lab);
-    const sw = Math.floor(t / 160) % 12;
-    const hx = 104 - sw, hy = 54 + (sw % 3 === 0 ? 1 : 0);
-    k.line(126, 36, 132, 44, C.silver); k.line(127, 36, 133, 44, '#8a929c'); P(131, 43, 4, 4, C.lab); P(132, 44, 2, 2, C.labDk);
-    k.line(132, 46, hx + 4, hy - 4, C.silver); k.line(133, 46, hx + 5, hy - 4, '#8a929c');
-    P(hx + 2, hy - 6, 4, 4, '#8a929c'); P(hx + 3, hy - 5, 2, 2, C.lab);
-    k.line(hx + 3, hy - 2, hx, hy + 1, C.ink);
+    for (let i = 0; i < 4; i++) P(62 + i, 50 - i * 2, 46, 2, i % 2 ? C.paper : C.sheet);
     P(66, 52, 46, 14, C.sheet); P(66, 52, 46, 1, '#ffffff'); P(66, 65, 46, 1, C.tan); P(70, 55, 30, 1, C.tan); P(70, 57, 24, 1, C.tan);
     P(70, 62, 34, 1, C.tan);
-    for (let i = 0; i < 12 - sw; i++) P(101 - i * 2 - 1, 60 + (i % 3 === 1 ? -1 : i % 3 === 2 ? 1 : 0), 2, 1, C.labDk);
-    for (let i = 0; i < 4; i++) P(62 + i, 50 - i * 2, 46, 2, i % 2 ? C.paper : C.sheet);
+    // The arm that replaced you, bolted to your side of the desk, signing in your hand.
+    const sw = Math.floor(t / 160) % 12;
+    const hx = 80 + sw * 2, hy = 59 + (sw % 3 === 0 ? 1 : 0) - 1;
+    for (let i = 0; i < sw; i++) P(80 + i * 2, 60 + (i % 3 === 1 ? -1 : i % 3 === 2 ? 1 : 0), 2, 1, C.labDk);
+    const ex = 70, ey = 28;
+    P(54, 46, 12, 2, C.coal); P(54, 46, 12, 1, '#4a4f55'); P(56, 40, 8, 6, '#8a929c'); P(56, 40, 8, 1, C.silver); P(57, 43, 6, 1, C.lab);
+    for (let o = 0; o < 3; o++) k.line(58 + o, 40, ex - 1 + o, ey + 1, ['#6f7c86', C.silver, '#8a929c'][o]);
+    for (let o = 0; o < 3; o++) k.line(ex - 1 + o, ey + 1, hx + 2 + o, hy - 6, ['#6f7c86', C.silver, '#8a929c'][o]);
+    P(ex - 1, ey - 1, 4, 4, '#6f7c86'); P(ex, ey, 2, 2, C.lab); P(ex, ey, 1, 1, C.labHi);
+    P(hx + 1, hy - 7, 5, 4, '#6f7c86'); P(hx + 2, hy - 6, 2, 2, C.lab);
+    P(hx, hy - 4, 2, 2, '#8a929c'); P(hx + 4, hy - 4, 1, 2, '#8a929c');
+    k.line(hx + 2, hy - 2, hx, hy + 1, C.ink); P(hx + 2, hy - 3, 1, 1, C.gold);
     P(10, 36, 22, 4, C.coal); P(12, 30, 18, 7, C.coal); P(10, 40, 3, 10, C.coal2); P(29, 40, 3, 10, C.coal2); P(19, 50, 3, 10, '#3a3a3a');
     P(10, 40, 22, 2, C.coal2);
     P(30, 31, 3, 9, C.coal2); P(30, 33, 3, 3, C.lab); P(31, 34, 1, 1, C.labDk);
@@ -1453,10 +1696,11 @@ const Art = (() => {
     const { P } = k;
     P(0, 0, 160, 72, '#cfc3ae');
     for (let x = 0; x < 160; x += 8) P(x, 0, 1, 50, '#c5b9a3');
-    P(102, 6, 48, 30, C.glass); miniView(k, 104, 8, 44, 26, 'storm', t, 5); P(125, 8, 2, 26, C.glass); P(100, 36, 52, 2, '#8a7f70');
+    P(102, 6, 48, 30, '#2a2c30'); miniView(k, 104, 8, 44, 26, 'storm', t, 5); P(126, 8, 1, 26, 'rgba(42,44,48,0.5)'); P(100, 36, 52, 2, '#8a7f70');
     P(14, 8, 22, 16, C.sheet); P(14, 8, 22, 4, C.meat); k.text('LOW', 16, 13, C.meatDk); P(16, 19, 16, 1, C.grey); P(16, 21, 12, 1, C.grey);
     P(0, 50, 160, 22, C.deskMd); P(0, 50, 160, 2, C.deskHi); P(0, 52, 160, 1, C.deskDk);
-    P(118, 30, 28, 22, '#d9cfbd'); P(120, 32, 24, 15, '#141a18'); P(122, 33, 6, 1, '#2a3632'); P(127, 52, 10, 3, '#a89e8c'); P(122, 55, 20, 2, '#a89e8c');
+    P(118, 30, 28, 20, '#141416'); P(119, 30, 26, 1, '#3a3d42'); P(119, 31, 26, 17, '#141a18'); P(121, 32, 5, 1, '#2a3632'); P(121, 33, 1, 2, '#2a3632');
+    P(118, 48, 28, 2, '#24262a'); P(141, 48, 2, 1, '#3a3d42'); P(131, 50, 2, 5, C.steel); P(131, 50, 1, 5, '#8a96a0'); P(125, 54, 14, 2, '#2a2c30'); P(125, 54, 14, 1, '#4a4f55');
     P(52, 32, 56, 4, '#8a6a3e');
     plantPot(k, 56, 16);
     P(70, 22, 3, 12, C.ink); P(70, 22, 12, 9, C.sheet); P(72, 24, 8, 5, C.lab);
@@ -1506,13 +1750,21 @@ const Art = (() => {
     for (let i = 0; i < left * 2; i++) { const y = 37 - i * 2; P(7 + (i % 2), y, 30, 2, i % 2 ? C.paper : C.sheet); P(7 + (i % 2), y + 1, 30, 1, C.tan); }
     P(4, 36, 36, 5, '#4a4f55'); P(4, 36, 36, 1, '#6f7c86');
     k.text('IN', 7, 37, C.silver);
+    P(15, 37, 10, 3, '#2a2c30'); P(15, 37, 10, 1, '#3a3d42');
+    P(17, 38, 1, 1, C.lab); P(19, 37, 1, 1, C.lab); P(20, 38, 1, 1, C.lab); P(19, 39, 1, 1, C.lab);
+    P(23, 38, 1, 1, Math.floor(t / 700) % 3 ? C.labDk : C.glow);
     proxySticker(P, 26, 32);
+    P(86, 47, 18, 2, sh);
+    P(84, 40, 18, 7, '#141416'); P(85, 40, 16, 1, '#3a3d42'); P(85, 41, 16, 5, C.scr);
+    P(86, 42, 2, 2, C.lab); P(89, 42, 10, 1, Math.floor(t / 1800) % 4 ? '#2f6670' : C.glow); P(89, 44, 7, 1, '#2f4a52');
     P(50, 44, 26, 2, sh);
     P(48, 37, 26, 8, '#3a3d42'); P(48, 37, 26, 1, '#6f7c86'); P(50, 39, 22, 5, C.ink); P(51, 40, 6, 1, '#2a2226');
     P(48, 32, 26, 5, '#4a4f55'); P(48, 32, 26, 1, '#6f7c86');
     P(116, 46, 18, 3, sh);
     P(114, 33, 14, 14, C.sheet); P(114, 33, 14, 2, '#ffffff'); P(115, 35, 12, 3, '#3a2a22'); P(116, 35, 4, 1, '#5a4a3a'); P(127, 36, 4, 7, C.sheet); P(128, 37, 2, 5, C.deskMd); P(126, 33, 1, 14, '#e6dccb');
     P(117, 40, 8, 3, C.meat); P(119, 41, 4, 1, C.sheet);
+    P(113, 47, 16, 1, 'rgba(111,227,239,0.35)');
+    P(114, 45, 12, 2, C.labDk); P(114 + (Math.floor(t / 250) % 10), 45, 3, 1, C.glow); P(114, 46, 12, 1, C.lab);
     const st = Math.floor(t / 300);
     for (let i = 0; i < 2; i++) { const sx = 118 + i * 5 + ((st + i) % 2); const sy = 27 - ((st + i * 2) % 3); P(sx, sy, 1, 2, '#e6dccb'); P(sx + 1, sy - 2, 1, 2, '#e6dccb'); }
     const name = (opt.name || 'Countersigner').slice(0, 18);
@@ -1652,5 +1904,5 @@ const Art = (() => {
     }, { fixed: [CAL_W, CAL_H], max: o.max || 4, maxH: o.maxH, still: true });
   }
 
-  return { scene, photo, bust, title, chuckPortrait, proxy, proxyBadge, steak: proxy, steakBadge: proxyBadge, shade, mix, live, place, skyline, ending, desk, stamp, sealIcon, calendar, calendarRowEnd, endings: Object.keys(ENDINGS), places: Object.keys(PLACES) };
+  return { scene, photo, bust, title, intro, chuckPortrait, proxy, proxyBadge, steak: proxy, steakBadge: proxyBadge, shade, mix, live, place, skyline, ending, desk, stamp, sealIcon, calendar, calendarRowEnd, endings: Object.keys(ENDINGS), places: Object.keys(PLACES) };
 })();

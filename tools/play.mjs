@@ -15,6 +15,7 @@ async function run(viewport, label, days, shotsAt) {
   await page.screenshot({ path: `/tmp/lc-test/mp-shots/${label}-menu.png` });
   await page.click('#menu-buttons .btn:has-text("New contract")');
   await page.click('#btn-begin');
+  await page.click('#btn-intro-go');
   const screen = () => page.evaluate(() => UI.screen);
   let shot = 0, items = 0, guard = 0, endingSeen = null;
   const outcomes = {};

@@ -107,6 +107,20 @@ canvas.px { image-rendering: pixelated; image-rendering: crisp-edges; display: b
 .menu-buttons .btn { justify-content: flex-start; }
 .menu-foot { font-size: 17px; color: var(--text); width: fit-content; max-width: min(100%, 640px); padding: 5px 10px; background: var(--panel-2); border: 2px solid var(--text); box-shadow: 3px 3px 0 var(--text); }
 
+/* INTRO CARD: one screen before the first briefing of a new contract */
+#screen-intro { background: var(--bg); }
+.intro-wrap { flex: 1; min-height: 0; display: flex; padding-block: calc(16px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.intro { margin: auto; width: 100%; max-width: 560px; display: grid; gap: 12px; }
+.intro-art { line-height: 0; }
+.intro-art canvas { margin: 0 auto; border: 2px solid var(--text); box-shadow: 4px 4px 0 var(--meat); }
+.intro h2 { margin: 4px 0 0; font-family: var(--f-display); font-weight: 700; font-size: clamp(22px, 5vw, 34px); line-height: 1; color: var(--text); text-shadow: 3px 3px 0 var(--meat); }
+.intro p { margin: 0; font-size: 1.1em; line-height: 1.15; }
+.intro .intro-you { color: var(--meat-dark); font-size: 1.25em; }
+.intro .intro-job { background: var(--paper); border: 2px solid var(--text); box-shadow: 3px 3px 0 var(--line-2); padding: 6px 10px; font-size: 1em; }
+.intro .intro-job b { font-family: var(--f-display); font-weight: 400; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--meat-dark); }
+.intro .btn { justify-self: start; min-height: 46px; padding-inline: 18px; }
+@media (max-width: 600px), (max-height: 700px) { .intro { gap: 8px; } .intro p { font-size: 1em; } .intro .intro-you { font-size: 1.15em; } }
+
 /* SCENES */
 #screen-scene { background: var(--bg); }
 .scene-wrap { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 20px; padding-block: 20px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1180px; width: 100%; margin: 0 auto; }
@@ -666,6 +680,20 @@ body.large .seal-cap { font-size: 16px; }
           <button class="btn primary" id="btn-begin">Put on the armband</button>
           <button class="btn" id="btn-new-back">Back</button>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-intro" class="screen" hidden aria-labelledby="intro-title">
+    <div class="intro-wrap scroll">
+      <div class="intro">
+        <div class="intro-art"><canvas id="intro-canvas" class="px" width="120" height="56" aria-hidden="true"></canvas></div>
+        <h2 id="intro-title">San Francisco, 2031.</h2>
+        <p>The AI labs run the country now. Their system, CHUCK, decides who gets housing, benefits, visas, jobs.</p>
+        <p>The law still says a human must sign every decision — so someone can be blamed.</p>
+        <p class="intro-you">That human is you. You’re the meat proxy.</p>
+        <p class="intro-job"><b>Your job:</b> read the papers, catch CHUCK’s mistakes, and sign, return, or refuse. Some decisions are lawful and still cruel. Refusing costs you.</p>
+        <button class="btn primary" id="btn-intro-go">Continue ▸</button>
       </div>
     </div>
   </section>

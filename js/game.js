@@ -505,7 +505,8 @@ function openNewGame(endless) {
   if (!window.matchMedia('(pointer: coarse)').matches) { const name = $('officer-name'); name.focus({ preventScroll: true }); name.select(); }
 }
 
-function newGame() {
+// From the contract screen a new campaign opens on the intro card; endless and the test harness go straight to day 1.
+function newGame(withIntro) {
   newRun();
   const raw = $('officer-name').value.trim().replace(/[^\p{L}\s'-]/gu, '').slice(0, 18) || 'Hale';
   const surname = raw[0].toUpperCase() + raw.slice(1);
@@ -518,7 +519,17 @@ function newGame() {
     history: [], tutorial: newOpts.tutorial, tutDone: !newOpts.tutorial, weather: 'clear', metStaff: [], recentTpl: {},
     poi: campaignPoi(seed, surname), tplCount: {}, endlessStart: newOpts.endless ? 1 : null, heard: { t: 0, m: {} }, citizenLog: {}
   };
-  startDay();
+  if (withIntro && !S.endless) openIntro(); else startDay();
+}
+
+// One card before the first briefing that says what the game is. Nothing is saved until day 1 starts, so a reload here
+// goes back to the menu, and Continue never shows it.
+function openIntro() {
+  show('screen-intro');
+  const cv = $('intro-canvas');
+  Art.live(cv, (t) => Art.intro(cv, t), { fixed: [120, 56], max: 4, maxH: Math.max(56, Math.floor(window.innerHeight * 0.24)) });
+  announce([...document.querySelectorAll('#screen-intro h2, #screen-intro p')].map((e) => e.textContent).join(' '));
+  $('btn-intro-go').focus({ preventScroll: true });
 }
 
 /* ================= DAY FLOW ================= */
@@ -2259,7 +2270,7 @@ function frame(ts) {
     off = Math.round(UI.walk.from + (UI.walk.to - UI.walk.from) * k);
     if (k >= 1 && UI.walk.to === 0) UI.walk = null;
   }
-  const people = UI.cur ? [{ look: UI.cur.look, x: 34 + off, main: true }] : [];
+  const people = UI.cur ? [{ look: UI.cur.look, x: 34 + off, main: true, gear: !UI.cur.story }] : [];
   Art.scene($('scene-canvas'), { weather: weatherToday(), t: animT(ts), people, chuckMood: UI.chuckMood });
 }
 
@@ -2273,7 +2284,8 @@ function bindControls() {
   $('officer-name').addEventListener('focus', (e) => { const el = e.target; setTimeout(() => el.select(), 0); });
   $('btn-bulletin').addEventListener('click', openBulletin);
   $('btn-pause').addEventListener('click', openPause);
-  $('btn-begin').addEventListener('click', () => { Sound.unlock(); Sound.play('stamp'); newGame(); });
+  $('btn-begin').addEventListener('click', () => { Sound.unlock(); Sound.play('stamp'); newGame(true); });
+  $('btn-intro-go').addEventListener('click', () => { if (UI.screen !== 'screen-intro') return; Sound.play('click'); startDay(); });
   document.addEventListener('keydown', trapModalTab, true);
   let resizeTimer = null;
   window.addEventListener('resize', () => {
@@ -2288,7 +2300,7 @@ function bindControls() {
   document.addEventListener('keydown', (e) => {
     // Only text entry swallows keys; sliders and buttons still let Esc close a dialog.
     const typing = e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes(e.target.type));
-    if (typing) { if (e.key === 'Enter' && UI.screen === 'screen-new') newGame(); return; }
+    if (typing) { if (e.key === 'Enter' && UI.screen === 'screen-new') { e.preventDefault(); newGame(true); } return; }
     if (e.key === 'Escape') {
       if (UI.modalOpen) closeModal();
       else if (UI.screen === 'screen-booth' && UI.qOpen) { toggleQuestions(false); $('a-ask').focus({ preventScroll: true }); }
