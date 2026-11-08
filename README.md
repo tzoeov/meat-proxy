@@ -27,8 +27,21 @@ python3 -m http.server 8000
 
 ## Checks
 
-- `node tools/smoke.js js`: generates 4,800 cases across all ten days and fails loudly on any unfilled placeholder.
+- `node tools/smoke.js js`: the content and rules gate. It generates 10,828 cases across all ten days plus endless and
+  exits non-zero on any problem. It checks that every flaw tag maps to a statute clause and is graded by it, that each
+  slot kind gets its verdict, that every flaw is visible on the papers, that approve cases carry a valid seal, ink,
+  reference and approver, that the bulletin follows `DAY_PLAN` and §13, that late-game flaws appear only from day 6,
+  that story cases have their own CHUCK lines and second versions, and that 100 simulated shifts never repeat a line.
+  It also checks that each day's answer key changes from campaign to campaign, and that a source which leaves a weekday
+  out only does so for dates on the desk calendar's pages.
+- `node tools/logic.mjs`: drives the real game in headless Chrome over `file://`: every outcome and its report label,
+  ending precedence for all 12 endings, the reload-in-evening file warning, focus and keyboard rules, phone tutorial
+  wording, share text and endless escalation, the mother's bill state by state, and a structural save fuzz (every field
+  of a real save set to each damaging value, then Continue and act). Every page runs on a seeded `Math.random`
+  (`LOGIC_SEED` picks another), so a run repeats exactly. Exits non-zero on failure.
 - `node tools/play.mjs`: plays the whole campaign in headless Chrome plus three phone viewports and reports page
-  errors. Needs `playwright-core`; point `PW_HOME` at a `package.json` whose `node_modules` has it.
+  errors.
+
+`logic.mjs` and `play.mjs` need `playwright-core`: point `PW_HOME` at a `package.json` whose `node_modules` has it.
 
 `docs/BRIEF.md` is the brief this game was built from.

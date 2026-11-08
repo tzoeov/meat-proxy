@@ -70,5 +70,36 @@ await run({ width: 1280, height: 800 }, 'desk', 10, ['booth', 'desk', 'report', 
 await run({ width: 390, height: 844 }, 'phone', 1, ['booth', 'desk', 'scene', 'report']);
 await run({ width: 360, height: 640 }, 'small', 1, ['booth', 'desk']);
 await run({ width: 844, height: 390 }, 'land', 1, ['booth', 'desk']);
+// Day 5+ puts the Oversight button in the top bar: no phone width may scroll sideways, in a normal shift or a heavy one
+// (overtime clock, a big balance, a thick file).
+for (const [w, h] of [[320, 568], [360, 640], [375, 667], [390, 844]]) {
+  const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  await ctx.addInitScript(() => { try { localStorage.setItem('meatproxy.settings.v1', JSON.stringify({ textSpeed: 'instant', tips: false, music: 0, sfx: 0, ambience: 0, master: 0 })); } catch (e) {} });
+  const page = await ctx.newPage();
+  const label = `overflow${w}`;
+  page.on('pageerror', (e) => errors.push(`[${label}] ${e.message}`));
+  await page.goto(url);
+  await page.waitForSelector('#menu-buttons .btn');
+  await page.evaluate(() => { newOpts.endless = false; newOpts.tutorial = false; newGame(); S.day = 5; S.shift = null; S.phase = 'brief'; startDay(); });
+  for (let i = 0; i < 60 && (await page.evaluate(() => UI.screen)) === 'screen-scene'; i++) {
+    const bt = await page.waitForSelector('#scene-choices .btn:not([disabled])', { timeout: 2000 }).catch(() => null);
+    if (bt) await bt.click().catch(() => {});
+    await page.waitForTimeout(40);
+  }
+  await page.waitForFunction(() => UI.screen === 'screen-booth' && UI.cur && !UI.busy, null, { timeout: 8000 });
+  const measure = () => page.evaluate(() => {
+    const bar = document.querySelector('#screen-booth .topbar');
+    const right = Math.max(...[...bar.children].filter((e) => !e.hidden && e.getBoundingClientRect().width).map((e) => e.getBoundingClientRect().right));
+    return { watch: !document.getElementById('btn-bulletin').hidden, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth, bar: bar.scrollWidth - bar.clientWidth, right: Math.round(right) };
+  });
+  const normal = await measure();
+  await page.evaluate(() => { S.shift.clock = shiftEnd() + 37; S.money = 1250; S.stats.suspicion = 11; renderTop(); });
+  const heavy = await measure();
+  for (const [k, m] of [['normal', normal], ['heavy', heavy]]) {
+    if (!m.watch || m.sw > m.cw || m.bar > 0 || m.right > m.cw) errors.push(`[${label}] day-5 top bar overflows (${k}): ${JSON.stringify(m)}`);
+  }
+  console.log(label, 'day 5', JSON.stringify({ normal, heavy }));
+  await ctx.close();
+}
 await browser.close();
 console.log('ERRORS', errors.length); errors.slice(0, 20).forEach((e) => console.log(e));
