@@ -146,7 +146,7 @@ machine, one where the truth gets out, and one where you are simply replaced. Ev
 - **Same pixel engine and desk.** The window shows drones, a lab billboard and fog. The cold room door becomes a
   ration locker. A wall poster becomes a "Your Alignment Matters" notice.
 - **CHUCK's monitor** gets the lab's logo. Add one new mood, `pleased-with-itself`.
-- **Title screen:** the steak mascot stays (it's the brand), now wearing a lanyard with a countersigner badge,
+- **Title screen:** the mascot is the meat proxy itself, a uniformed clerk in shades, wearing a lanyard with a countersigner badge,
   under a drone.
 - **Palette:** keep the butcher-paper base, and add a cold "lab" accent (a clinical cyan or sodium orange) used
   only for lab-owned surfaces. Keep the contrast fixes: no functional text under 11px, AA contrast.

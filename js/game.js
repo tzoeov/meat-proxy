@@ -1492,7 +1492,7 @@ function showReport() {
   $('report-wrap').innerHTML = `<div class="report">
     <div class="rep-sky"><canvas class="px" id="rep-sky" aria-hidden="true"></canvas></div>
     <div class="rep-head">
-      <canvas class="px badge" id="rep-badge" width="96" height="80" role="img" aria-label="The Meat Proxy steak. ${esc(caption)}"></canvas>
+      <canvas class="px badge" id="rep-badge" width="96" height="80" role="img" aria-label="The meat proxy. ${esc(caption)}"></canvas>
       <div><h2 id="rep-title" tabindex="-1">SHIFT ${String(s.day).padStart(2, '0')} — DAILY REPORT</h2>
       <div class="sub">DISTRICT 7 COUNTERSIGNATURE OFFICE · ${esc(S.officer.toUpperCase())} · ${esc(longDate(dayDate(S.day)).toUpperCase())}</div>
       <div class="badge-cap">${esc(caption)}</div></div>
@@ -1542,7 +1542,7 @@ function showReport() {
     </div></div>
     <div class="report-actions"><button class="btn small" id="rep-copy">Copy shift report</button><span class="spacer"></span><button class="btn" id="rep-save">Save game</button><button class="btn primary" id="rep-next">${S.rep <= 0 ? 'See Marta' : 'Clock out'}</button></div>`;
   $('report-wrap').scrollTop = 0;
-  Art.steakBadge($('rep-badge'), mood);
+  Art.proxyBadge($('rep-badge'), mood);
   const sky = $('rep-sky');
   Art.live(sky, (t) => Art.skyline(sky, skyDay(), weatherToday(), t), { h: 30, s: 2 });
   announce(`Shift ${s.day} report. ${s.stars} of 5 stars. ${harmText} ${fileLine}`);
@@ -1665,13 +1665,13 @@ function showEnding(key) {
   const E = ENDINGS[key] || ENDINGS.autosigned;
   const got = readEndings();
   const st = S.stats;
-  // The steak's caption describes how this run was played, not the ending's mood.
+  // The proxy badge's caption describes how this run was played, not the ending's mood.
   const { mood, caption } = endingBadge(S);
   const doors = E.endless ? [] : otherDoors(Object.assign({}, got, { [key]: true }), key);
   $('ending').innerHTML = `
     <div class="end-art"><canvas class="px" id="end-art" width="160" height="72" aria-hidden="true"></canvas></div>
     <div class="end-head">
-      <canvas class="px badge" id="end-badge" width="96" height="80" role="img" aria-label="The Meat Proxy steak. ${esc(caption)}"></canvas>
+      <canvas class="px badge" id="end-badge" width="96" height="80" role="img" aria-label="The meat proxy. ${esc(caption)}"></canvas>
       <div><div class="eyebrow">${E.endless ? `ENDLESS RUN · ${plural(endlessShift(), 'SHIFT').toUpperCase()}` : `ENDING ${CAMPAIGN_ENDINGS().filter((k) => got[k]).length} OF ${CAMPAIGN_ENDINGS().length} FOUND`}</div>
       <h2 id="end-title" tabindex="-1">${esc(E.title)}</h2>
       <div class="badge-cap">${esc(caption)}</div></div>
@@ -1688,7 +1688,7 @@ function showEnding(key) {
       <button class="btn" id="end-new">New contract</button>
       ${['dismissed', 'relocated', 'scapegoat', 'bust', 'reloc'].includes(key) ? '' : '<button class="btn" id="end-endless">Keep signing (endless)</button>'}
     </div>`;
-  Art.steakBadge($('end-badge'), mood);
+  Art.proxyBadge($('end-badge'), mood);
   const endArt = $('end-art');
   Art.live(endArt, (t) => Art.ending(endArt, E.art || key, t), { fixed: [160, 72], max: 3 });
   $('end-share').addEventListener('click', (e) => shareOrCopy([

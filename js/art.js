@@ -602,98 +602,110 @@ const Art = (() => {
     kick();
   }
 
-  /* ---------- the mascot: a T-bone in sunglasses ---------- */
-  const STEAK = (() => {
-    const W = 40, H = 27;
-    const inE = (x, y, cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
-    const inside = (x, y) => {
-      if (x < 0 || y < 0 || x >= W || y >= H) return false;
-      const X = x + 0.5, Y = y + 0.5;
-      if (inE(X, Y, 26.5, 28.5, 4.5, 4.2)) return false;
-      return inE(X, Y, 15, 14, 15, 12.6) || inE(X, Y, 30.5, 12.5, 9.2, 8.6) || inE(X, Y, 24, 6, 7, 5.5);
+  /* ---------- the mascot: the meat proxy, a countersigner in sunglasses ---------- */
+  // Head and shoulders, 40×35: peaked cap, face, collar, tunic. Moods and the ID lanyard are drawn on top.
+  const PROXY = [
+    '..........oooooooooooooooooooo..........',
+    '........ookkkkkkkkkkkkkkkkkkkkoo........',
+    '.......oKKKKKKKKKKKKKKKKKKKKKKKKo.......',
+    '.......oKKKKKKKKKKccccKKKKKKKKKKo.......',
+    '.......oKKKKKKKKKKcdhcKKKKKKKKKKo.......',
+    '........oKKKKKKKKKccccKKKKKKKKKo........',
+    '.........occcccccccccccccccccco.........',
+    '.........oSSSSSSSSSSSSSSSSSSSSo.........',
+    '.......ovvvvvvvvvvvvvvvvvvvvvvvvo.......',
+    '........oovvvvvvvvvvvvvvvvvvvvoo........',
+    '...........oHggggggggggggggHo...........',
+    '.........oggHllffffffffffffHggo.........',
+    '.........ogGfllffffffffffffgGgo.........',
+    '.........ogGflfffffffffffffgGgo.........',
+    '.........oggfffffffffffffffgggo.........',
+    '..........oofffffffffffffffgoo..........',
+    '...........offfffffffffffffgo...........',
+    '...........offfffffffffffffgo...........',
+    '............offfffffffffffgo............',
+    '............offfffffffffffgo............',
+    '.............offfffffffffgo.............',
+    '..............ooGGGGGGGGoo..............',
+    '........ooooooouuuuuuuuuuooooooo........',
+    '.....ooouuuuuutSSuuuuuuSStuuuuuuooo.....',
+    '...ooSSSSSSTTTTttttttttttTTTTSSSSSSoo...',
+    '..oTTssssssTTTTTTTTTTTTTTTTTTssssssTTo..',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.',
+    '.oTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTo.'
+  ];
+  let proxyInk = null;
+  function proxyColors() {
+    if (proxyInk) return proxyInk;
+    const skin = SKIN_TONES[2];
+    proxyInk = {
+      o: INK, K: C.coal2, k: '#3a3d42', v: '#0c0c0e', S: C.silver, s: shade(C.silver, -0.3), c: C.lab, d: C.labDk, h: C.labHi,
+      f: skin, g: shade(skin, -0.16), G: shade(skin, -0.32), l: shade(skin, 0.12), lip: shade(skin, -0.45), H: '#3b2a1e',
+      T: C.coal, t: shade(C.coal, -0.35), u: shade(C.coal, 0.18)
     };
-    const depth = [];
-    for (let y = 0; y < H; y++) {
-      const row = [];
-      for (let x = 0; x < W; x++) {
-        let d = 0;
-        if (inside(x, y)) { d = 1; while (d < 6 && [[-d, 0], [d, 0], [0, -d], [0, d], [-d, -d], [d, d], [-d, d], [d, -d]].every(([a, b]) => inside(x + a, y + b))) d += 1; }
-        row.push(d);
-      }
-      depth.push(row);
-    }
-    return { W, H, depth };
-  })();
-  const isBone = (x, y) => (y >= 1 && y <= 3 && x >= 18 && x <= 30) || (x >= 23 && x <= 25 && y >= 3 && y <= 21);
-  function steakBody(P, plain) {
-    const { W, H, depth } = STEAK;
-    const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : depth[y][x]);
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        const d = depth[y][x];
-        if (!d) continue;
-        let c = C.meat;
-        const fatZone = x <= 19 && (y <= 13 || x <= 5) && !(x > 14 && y > 9);
-        if (d === 1) c = C.meatXd;
-        else if (fatZone && d === 2) c = C.fat;
-        else if (fatZone && d === 3) c = '#e6d6bd';
-        else if (!at(x, y + 2) || !at(x + 2, y)) c = C.meatDk;
-        else if (d === 2 && y < 12) c = C.meatHi;
-        P(x, y, 1, 1, c);
-      }
-    }
-    for (let y = 0; y < H; y++) {
-      for (let x = 0; x < W; x++) {
-        if (!isBone(x, y) || depth[y][x] < 1) continue;
-        if (depth[y][x] === 1 && y > 3) continue;
-        P(x, y, 1, 1, x === 25 || (y === 3 && x > 25) ? C.boneSh : C.bone);
-      }
-    }
-    for (let y = 4; y <= 21; y++) { if (depth[y][22] > 1) P(22, y, 1, 1, C.meatDk); if (depth[y][26] > 1) P(26, y, 1, 1, C.meatDk); }
-    const marb = plain ? [[6, 19, 4], [12, 22, 4], [29, 8, 4], [31, 16, 4], [28, 20, 3], [15, 6, 3], [8, 14, 3]] : [[5, 20, 4], [12, 22, 4], [29, 8, 4], [31, 16, 4], [28, 20, 3]];
-    marb.forEach(([x, y, w]) => { P(x, y, w, 1, '#f0d4cc'); P(x + 1, y - 1, Math.max(1, w - 2), 1, '#e9a3ad'); });
+    return proxyInk;
   }
-  function steakShades(P, y) {
-    P(3, y, 2, 1, INK); P(19, y, 2, 1, INK);
-    P(5, y, 6, 3, INK); P(13, y, 6, 3, INK); P(11, y, 2, 1, INK);
-    P(6, y, 2, 1, '#5a5a6a'); P(14, y, 2, 1, '#5a5a6a');
+  function proxyBody(P, K) {
+    PROXY.forEach((r, y) => [...r].forEach((ch, x) => { if (K[ch]) P(x, y, 1, 1, K[ch]); }));
+    P(7, 27, 1, 8, K.t); P(32, 27, 1, 8, K.t);
+    P(2, 28, 5, 4, C.lab); P(2, 28, 5, 1, shade(C.lab, 0.3)); P(3, 29, 3, 2, C.labDk); P(4, 29, 1, 1, C.labHi);
+    [27, 30, 33].forEach((y) => { P(12, y, 1, 1, C.silver); P(27, y, 1, 1, C.silver); });
+    P(20, 14, 1, 3, K.g); P(19, 17, 3, 1, K.G);
   }
-  function steakEye(P, x, y, look) { P(x, y - 1, 3, 1, INK); P(x, y, 3, 2, '#ffffff'); P(x + look, y, 1, 2, INK); }
-  function steakId(P) {
-    P(9, 21, 1, 2, C.labDk); P(10, 23, 1, 2, C.labDk); P(11, 25, 1, 2, C.labDk);
-    P(19, 21, 1, 2, C.labDk); P(18, 23, 1, 2, C.labDk); P(17, 25, 1, 2, C.labDk);
-    P(13, 27, 3, 2, C.lab);
-    P(10, 28, 9, 7, C.bone); P(10, 28, 9, 2, C.meat); P(10, 34, 9, 1, C.boneSh);
-    P(12, 31, 5, 1, C.grey); P(12, 33, 3, 1, C.grey);
+  function proxyLanyard(P) {
+    for (let i = 0; i < 4; i++) { P(15 + i, 24 + i, 1, 1, C.lab); P(24 - i, 24 + i, 1, 1, C.lab); }
+    P(19, 27, 2, 1, C.silver);
+    P(15, 28, 10, 7, C.bone); P(15, 28, 10, 2, C.meat); P(15, 29, 10, 1, C.meatDk);
+    P(16, 31, 3, 3, C.tan); P(17, 31, 1, 1, C.coal); P(16, 33, 3, 1, C.coal);
+    P(20, 31, 4, 1, C.grey); P(20, 33, 3, 1, C.grey);
   }
+  function proxyShades(P, y) {
+    P(12, y, 1, 1, INK); P(27, y, 1, 1, INK);
+    P(13, y, 6, 2, INK); P(21, y, 6, 2, INK); P(14, y + 2, 4, 1, INK); P(22, y + 2, 4, 1, INK); P(19, y, 2, 1, INK);
+    P(14, y, 2, 1, '#5a5a6a'); P(22, y, 2, 1, '#5a5a6a');
+  }
+  function proxyEyes(P, y) {
+    P(14, y, 3, 2, '#f2efe6'); P(23, y, 3, 2, '#f2efe6');
+    P(15, y, 2, 2, '#4a2e1a'); P(23, y, 2, 2, '#4a2e1a'); P(15, y, 1, 1, '#0f0f10'); P(24, y, 1, 1, '#0f0f10');
+  }
+  function proxyBrows(P, K, y) { P(13, y, 4, 1, K.H); P(23, y, 4, 1, K.H); }
   // Draws the mascot with its top-left at (0,0) of the painter: 40×35 with the ID card.
-  function steakSprite(P, mood, t) {
-    steakBody(P);
+  function proxySprite(P, mood, t) {
+    const K = proxyColors();
+    proxyBody(P, K);
     switch (mood) {
       case 'peek':
-        steakEye(P, 6, 8, 2); steakEye(P, 14, 8, 2);
-        P(6, 6, 3, 1, C.meatXd); P(14, 6, 3, 1, C.meatXd);
-        steakShades(P, 11);
-        P(10, 17, 4, 1, INK);
+        proxyBrows(P, K, 10);
+        proxyEyes(P, 12);
+        proxyShades(P, 14);
+        P(18, 19, 4, 1, K.lip);
         break;
       case 'off':
-        steakShades(P, 3);
-        steakEye(P, 6, 9, 1); steakEye(P, 14, 9, 1);
-        P(9, 16, 6, 1, INK); P(8, 15, 1, 1, INK); P(15, 15, 1, 1, INK);
+        proxyShades(P, 5);
+        proxyBrows(P, K, 11);
+        proxyEyes(P, 12);
+        P(17, 19, 6, 1, K.lip); P(16, 18, 1, 1, K.lip); P(23, 18, 1, 1, K.lip);
         break;
       case 'sweat':
-        steakShades(P, 9);
-        P(2, 4, 1, 1, '#bfe8f4'); P(1, 5, 3, 2, '#7cc4e4'); P(2, 7, 1, 1, '#7cc4e4'); P(1, 5, 1, 1, '#ffffff');
-        P(9, 16, 2, 1, INK); P(11, 17, 2, 1, INK); P(13, 16, 2, 1, INK);
+        proxyShades(P, 12);
+        P(27, 14, 1, 1, '#bfe8f4'); P(26, 15, 2, 2, '#7cc4e4'); P(26, 15, 1, 1, '#ffffff'); P(27, 17, 1, 1, '#7cc4e4');
+        P(17, 19, 2, 1, K.lip); P(19, 20, 2, 1, K.lip); P(21, 19, 2, 1, K.lip);
         break;
       default: {
-        steakShades(P, 9);
+        proxyShades(P, 12);
         const smirk = t !== undefined && Math.floor(t / 1400) % 6 === 0;
-        P(9, 16, 6, 1, INK);
-        if (smirk) P(15, 15, 1, 1, INK);
+        P(17, 19, smirk ? 5 : 6, 1, K.lip);
+        if (smirk) P(22, 18, 1, 1, K.lip);
       }
     }
-    steakId(P);
+    proxyLanyard(P);
   }
   function scaledPainter(ctx, ox, oy, s) {
     return (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(ox + x * s, oy + y * s, w * s, h * s); };
@@ -701,25 +713,26 @@ const Art = (() => {
   function offsetPainter(P, ox, oy) { return (x, y, w, h, c) => P(ox + x, oy + y, w, h, c); }
 
   // The mascot at integer scale s, centred on (cx, cy) of the sprite body.
-  function steak(ctx, cx, cy, s, t, mood) {
+  function proxy(ctx, cx, cy, s, t, mood) {
     const k = Math.max(1, Math.round(s));
-    steakSprite(scaledPainter(ctx, Math.round(cx - 20 * k), Math.round(cy - 14 * k), k), mood || 'shades', t);
+    proxySprite(scaledPainter(ctx, Math.round(cx - 20 * k), Math.round(cy - 14 * k), k), mood || 'shades', t);
   }
 
   // The mascot as a badge for a 96×80 canvas. Moods: shades, peek, off, sweat.
-  function steakBadge(canvas, mood) {
+  function proxyBadge(canvas, mood) {
     const ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const s = Math.max(1, Math.floor(Math.min(canvas.width / 48, canvas.height / 40)));
     const ox = Math.round((canvas.width - 40 * s) / 2), oy = Math.round((canvas.height - 35 * s) / 2);
-    steakSprite(scaledPainter(ctx, ox, oy, s), mood || 'shades', STILL);
+    proxySprite(scaledPainter(ctx, ox, oy, s), mood || 'shades', STILL);
   }
 
-  // A 13×8 die-cut sticker of the mascot.
-  function steakSticker(P, x, y) {
-    const rows = ['..wwwwwwwww..', '.wwoooooooww.', 'wwoffffbmmoww', 'wofSSSSSbmmow', 'wofmmmmmbmmow', 'wwommmmmmmoww', '.wwoooooooww.', '..wwwwwwwww..'];
-    const col = { w: '#fffdf8', o: C.meatXd, f: C.fat, m: C.meat, S: INK, b: C.bone };
+  // A 13×9 die-cut sticker of the mascot's face, shades on.
+  function proxySticker(P, x, y) {
+    const rows = ['...wwwwwww...', '..wkkkkkkkw..', '.wwKKKcKKKww.', '.wcccccccccw.', 'wwvvvvvvvvvww', '.wSSSSSSSSSw.', '.wfSSfffSSgw.', '.wwffLLLfgww.', '..wwwwwwwww..'];
+    const K = proxyColors();
+    const col = { w: '#fffdf8', k: K.k, K: K.K, c: C.lab, v: K.v, S: INK, f: K.f, g: K.g, L: K.lip };
     rows.forEach((r, j) => [...r].forEach((ch, i) => { if (col[ch]) P(x + i, y + j, 1, 1, col[ch]); }));
   }
 
@@ -877,8 +890,9 @@ const Art = (() => {
     P(0, deskY, W, 22, C.deskMd); P(0, deskY, W, 2, C.deskHi); P(0, deskY + 6, W, 1, C.desk);
     for (let x = 3; x < W; x += 17) P(x, deskY + 9 + (x % 3), 9, 1, C.desk);
     const sx = band ? W - 46 : portrait ? W - 48 : Math.max(4, wx + Math.round(ww * 0.42) - 20 * ss);
-    P(sx + 5 * ss, sy + 27 * ss, 30 * ss, ss, C.deskDk);
-    steakSprite(scaledPainter(ctx, sx, sy, ss), 'shades', t);
+    const below = H - (sy + 35 * ss);
+    if (below > 0) { P(sx + ss, sy + 35 * ss, 38 * ss, below, INK); P(sx + 2 * ss, sy + 35 * ss, 36 * ss, below, C.coal); P(sx + 7 * ss, sy + 35 * ss, ss, below, shade(C.coal, -0.35)); P(sx + 32 * ss, sy + 35 * ss, ss, below, shade(C.coal, -0.35)); }
+    proxySprite(scaledPainter(ctx, sx, sy, ss), 'shades', t);
     const cx = portrait ? 6 : Math.min(W - 32, sx + 40 * ss + 4);
     if (!band && (!portrait || W > 120)) {
       P(cx - 2, deskY + 5, 32, 1, C.deskDk);
@@ -1451,7 +1465,7 @@ const Art = (() => {
     P(50, 34, 60, 30, '#c4a06a'); P(50, 34, 60, 2, '#d8b884'); P(50, 62, 60, 2, '#a8865e'); P(108, 36, 2, 26, '#a8865e');
     P(46, 30, 8, 6, '#b8915e'); P(106, 30, 8, 6, '#b8915e');
     P(76, 34, 8, 30, '#d8c8a0');
-    steakSticker(P, 56, 48);
+    proxySticker(P, 56, 47);
     P(20, 58, 24, 3, C.coal); P(28, 57, 6, 5, C.coal2); P(29, 58, 4, 3, C.lab); P(30, 59, 2, 1, C.labDk);
     P(52, 64, 56, 2, C.deskDk);
   }
@@ -1492,7 +1506,7 @@ const Art = (() => {
     for (let i = 0; i < left * 2; i++) { const y = 37 - i * 2; P(7 + (i % 2), y, 30, 2, i % 2 ? C.paper : C.sheet); P(7 + (i % 2), y + 1, 30, 1, C.tan); }
     P(4, 36, 36, 5, '#4a4f55'); P(4, 36, 36, 1, '#6f7c86');
     k.text('IN', 7, 37, C.silver);
-    steakSticker(P, 26, 33);
+    proxySticker(P, 26, 32);
     P(50, 44, 26, 2, sh);
     P(48, 37, 26, 8, '#3a3d42'); P(48, 37, 26, 1, '#6f7c86'); P(50, 39, 22, 5, C.ink); P(51, 40, 6, 1, '#2a2226');
     P(48, 32, 26, 5, '#4a4f55'); P(48, 32, 26, 1, '#6f7c86');
@@ -1638,5 +1652,5 @@ const Art = (() => {
     }, { fixed: [CAL_W, CAL_H], max: o.max || 4, maxH: o.maxH, still: true });
   }
 
-  return { scene, photo, bust, title, chuckPortrait, steak, steakBadge, shade, mix, live, place, skyline, ending, desk, stamp, sealIcon, calendar, calendarRowEnd, endings: Object.keys(ENDINGS), places: Object.keys(PLACES) };
+  return { scene, photo, bust, title, chuckPortrait, proxy, proxyBadge, steak: proxy, steakBadge: proxyBadge, shade, mix, live, place, skyline, ending, desk, stamp, sealIcon, calendar, calendarRowEnd, endings: Object.keys(ENDINGS), places: Object.keys(PLACES) };
 })();

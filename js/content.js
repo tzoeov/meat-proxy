@@ -1010,12 +1010,12 @@ const LINES = {
   softNoteHome: [
     'Returned. It will come back, probably tomorrow, probably signed. Until then, someone sleeps at home.'
   ],
-  // The steak badge's caption, by mood and by what actually happened.
+  // The proxy badge's caption, by mood and by what actually happened.
   caption: {
     shades: ['Shades on. Liability on.', 'Shades on. Didn’t look. Signed anyway.', 'Shades on. What you don’t read can’t be quoted at you.', 'Shades on. CHUCK approves of this level of curiosity.'],
     peek: ['You read the file. Noted.', 'Peeking over the shades. The file peeked back.', 'You opened the case file. Oversight opened a note about it.', 'You read the fine print. The fine print keeps a log.'],
-    peekPerfect: ['You read the file. Five stars anyway. Noted, fondly.', 'Read everything, signed right. The shades are impressed.', 'Peeked, checked, correct. The steak tips its shades.', 'You read the file and got it right. Rare. Logged as “good”.'],
-    sweat: ['Your file grew today. The steak is sweating for you.', 'Shades on. Still sweating. New pages will do that.', 'Oversight added pages. The steak added sweat.', 'A heavy day for your file. The shades can’t hide that.'],
+    peekPerfect: ['You read the file. Five stars anyway. Noted, fondly.', 'Read everything, signed right. The shades are impressed.', 'Peeked, checked, correct. Your proxy tips the shades.', 'You read the file and got it right. Rare. Logged as “good”.'],
+    sweat: ['Your file grew today. Your proxy is sweating for you.', 'Shades on. Still sweating. New pages will do that.', 'Oversight added pages. Your proxy added sweat.', 'A heavy day for your file. The shades can’t hide that.'],
     off: ['Shades off. Eyes open. Not recommended.', 'Shades off. You saw all of it.', 'Shades off. Nothing left to squint at.', 'Shades off. The light is terrible. You stay anyway.']
   }
 };

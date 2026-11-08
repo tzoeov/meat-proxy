@@ -907,7 +907,7 @@ function otherDoors(got, key) {
   return Object.keys(ENDING_DOORS).filter((k) => k !== key && !(got && got[k]) && ENDINGS[k] && !ENDINGS[k].endless).map((k) => ({ key: k, title: ENDINGS[k].title, hint: ENDING_DOORS[k] }));
 }
 
-// The steak badge on the ending screen describes how you played: how often you opened the case file, whether you
+// The proxy badge on the ending screen describes how you played: how often you opened the case file, whether you
 // refused anything, whether you took the envelopes. It never says you read what you didn't, or the other way round.
 const READ_MOST = 0.6;
 function endingBadge(S) {
